@@ -4,39 +4,48 @@ import br.com.agricoladigital.smart_farming_api.dto.request.AlterarSenhaRequest;
 import br.com.agricoladigital.smart_farming_api.dto.request.AtualizarUsuarioRequest;
 import br.com.agricoladigital.smart_farming_api.dto.request.CriarUsuarioRequest;
 import br.com.agricoladigital.smart_farming_api.dto.response.UsuarioResponse;
+import br.com.agricoladigital.smart_farming_api.entity.PerfilUsuario;
 import br.com.agricoladigital.smart_farming_api.entity.Usuario;
 import br.com.agricoladigital.smart_farming_api.exception.ConflitoException;
 import br.com.agricoladigital.smart_farming_api.exception.RecursoNaoEncontradoException;
 import br.com.agricoladigital.smart_farming_api.exception.SenhaAtualInvalidaException;
 import br.com.agricoladigital.smart_farming_api.repository.UsuarioRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Transactional(readOnly = true)
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public UsuarioService(
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService
+    ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
     public UsuarioResponse criar(CriarUsuarioRequest request) {
-        if (usuarioRepository.existsByEmail(request.email())) {
+        String email = normalizarEmail(request.email());
+        if (usuarioRepository.existsByEmail(email)) {
             throw new ConflitoException("Já existe um usuário cadastrado com este e-mail.");
         }
 
         Usuario usuario = new Usuario(
                 request.nome(),
-                request.email(),
+                email,
                 passwordEncoder.encode(request.senha()),
                 request.perfil()
         );
@@ -55,12 +64,26 @@ public class UsuarioService {
     }
 
     @Transactional
-    public UsuarioResponse atualizar(Long id, AtualizarUsuarioRequest request) {
+    public UsuarioResponse atualizar(
+            Long id,
+            AtualizarUsuarioRequest request,
+            Long solicitanteId,
+            boolean solicitanteAdministrador
+    ) {
         Usuario usuario = encontrarUsuario(id);
-        if (!usuario.getEmail().equals(request.email()) && usuarioRepository.existsByEmail(request.email())) {
+        if (request.perfil() != usuario.getPerfil()) {
+            if (!solicitanteAdministrador) {
+                throw new AccessDeniedException("Somente administradores podem alterar o perfil.");
+            }
+            if (id.equals(solicitanteId)) {
+                throw new ConflitoException("Não é possível alterar o próprio perfil.");
+            }
+        }
+        String email = normalizarEmail(request.email());
+        if (!usuario.getEmail().equals(email) && usuarioRepository.existsByEmail(email)) {
             throw new ConflitoException("Já existe um usuário cadastrado com este e-mail.");
         }
-        usuario.atualizarDados(request.nome(), request.email(), request.perfil());
+        usuario.atualizarDados(request.nome(), email, request.perfil());
         return paraResponse(usuario);
     }
 
@@ -74,14 +97,29 @@ public class UsuarioService {
     }
 
     @Transactional
-    public void excluir(Long id) {
+    public void desativar(Long id, Long solicitanteId) {
         Usuario usuario = encontrarUsuario(id);
-        try {
-            usuarioRepository.delete(usuario);
-            usuarioRepository.flush();
-        } catch (DataIntegrityViolationException exception) {
-            throw new ConflitoException("Não é possível excluir o usuário enquanto houver fazendas vinculadas.");
+        if (usuario.getPerfil() == PerfilUsuario.ADMINISTRADOR && id.equals(solicitanteId)) {
+            throw new ConflitoException("Administradores não podem desativar a própria conta.");
         }
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            throw new ConflitoException("O usuário já está desativado.");
+        }
+        usuario.desativar();
+        refreshTokenService.revogarTodos(id);
+    }
+
+    @Transactional
+    public void ativar(Long id) {
+        Usuario usuario = encontrarUsuario(id);
+        if (Boolean.TRUE.equals(usuario.getAtivo())) {
+            throw new ConflitoException("O usuário já está ativo.");
+        }
+        usuario.ativar();
+    }
+
+    private static String normalizarEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private Usuario encontrarUsuario(Long id) {
@@ -90,6 +128,6 @@ public class UsuarioService {
     }
 
     private static UsuarioResponse paraResponse(Usuario usuario) {
-        return new UsuarioResponse(usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getPerfil());
+        return new UsuarioResponse(usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getPerfil(), usuario.getAtivo());
     }
 }
