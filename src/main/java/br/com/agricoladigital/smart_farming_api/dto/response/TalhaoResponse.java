@@ -1,10 +1,12 @@
 package br.com.agricoladigital.smart_farming_api.dto.response;
 
+import tools.jackson.databind.JsonNode;
+
 public record TalhaoResponse(
         Long id,
         String identificacao,
         Double areaHectares,
-        String geometria,
+        JsonNode geometria,
         Long fazendaId
 ) {
 }

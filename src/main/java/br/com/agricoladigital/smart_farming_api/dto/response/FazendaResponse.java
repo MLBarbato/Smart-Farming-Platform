@@ -5,6 +5,11 @@ public record FazendaResponse(
         String nome,
         String localizacao,
         Double areaTotal,
-        Long usuarioId
+        Long usuarioId,
+        boolean ativa,
+        Double latitude,
+        Double longitude,
+        String cidade,
+        String estado
 ) {
 }

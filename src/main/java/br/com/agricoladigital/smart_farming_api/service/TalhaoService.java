@@ -6,23 +6,46 @@ import br.com.agricoladigital.smart_farming_api.entity.Fazenda;
 import br.com.agricoladigital.smart_farming_api.entity.Talhao;
 import br.com.agricoladigital.smart_farming_api.exception.ConflitoException;
 import br.com.agricoladigital.smart_farming_api.exception.RecursoNaoEncontradoException;
+import br.com.agricoladigital.smart_farming_api.repository.AlertaRepository;
+import br.com.agricoladigital.smart_farming_api.repository.DispositivoRepository;
 import br.com.agricoladigital.smart_farming_api.repository.FazendaRepository;
+import br.com.agricoladigital.smart_farming_api.repository.PlantioRepository;
+import br.com.agricoladigital.smart_farming_api.repository.RecomendacaoIrrigacaoRepository;
 import br.com.agricoladigital.smart_farming_api.repository.TalhaoRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
 public class TalhaoService {
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
     private final TalhaoRepository talhaoRepository;
     private final FazendaRepository fazendaRepository;
+    private final DispositivoRepository dispositivoRepository;
+    private final PlantioRepository plantioRepository;
+    private final AlertaRepository alertaRepository;
+    private final RecomendacaoIrrigacaoRepository recomendacaoIrrigacaoRepository;
 
-    public TalhaoService(TalhaoRepository talhaoRepository, FazendaRepository fazendaRepository) {
+    public TalhaoService(
+            TalhaoRepository talhaoRepository,
+            FazendaRepository fazendaRepository,
+            DispositivoRepository dispositivoRepository,
+            PlantioRepository plantioRepository,
+            AlertaRepository alertaRepository,
+            RecomendacaoIrrigacaoRepository recomendacaoIrrigacaoRepository
+    ) {
         this.talhaoRepository = talhaoRepository;
         this.fazendaRepository = fazendaRepository;
+        this.dispositivoRepository = dispositivoRepository;
+        this.plantioRepository = plantioRepository;
+        this.alertaRepository = alertaRepository;
+        this.recomendacaoIrrigacaoRepository = recomendacaoIrrigacaoRepository;
     }
 
     @Transactional
@@ -31,7 +54,7 @@ public class TalhaoService {
         Talhao talhao = new Talhao(
                 request.identificacao(),
                 request.areaHectares(),
-                request.geometria(),
+                paraTexto(request.geometria()),
                 fazenda
         );
         return paraResponse(talhaoRepository.save(talhao));
@@ -52,19 +75,24 @@ public class TalhaoService {
     @Transactional
     public TalhaoResponse atualizar(Long fazendaId, Long talhaoId, TalhaoRequest request) {
         Talhao talhao = encontrarTalhao(fazendaId, talhaoId);
-        talhao.atualizar(request.identificacao(), request.areaHectares(), request.geometria());
+        talhao.atualizar(request.identificacao(), request.areaHectares(), paraTexto(request.geometria()));
         return paraResponse(talhao);
     }
 
     @Transactional
     public void excluir(Long fazendaId, Long talhaoId) {
         Talhao talhao = encontrarTalhao(fazendaId, talhaoId);
-        try {
-            talhaoRepository.delete(talhao);
-            talhaoRepository.flush();
-        } catch (DataIntegrityViolationException exception) {
-            throw new ConflitoException("Não é possível excluir o talhão enquanto houver dispositivos vinculados.");
+        if (dispositivoRepository.existsByTalhao_Id(talhaoId)
+                || plantioRepository.existsByTalhao_Id(talhaoId)
+                || alertaRepository.existsByTalhao_Id(talhaoId)
+                || recomendacaoIrrigacaoRepository.existsByTalhao_Id(talhaoId)) {
+            throw new ConflitoException(
+                    "Não é possível excluir o talhão enquanto houver dispositivos, plantios, alertas "
+                            + "ou recomendações vinculados."
+            );
         }
+        talhaoRepository.delete(talhao);
+        talhaoRepository.flush();
     }
 
     private Fazenda encontrarFazenda(Long fazendaId) {
@@ -80,12 +108,20 @@ public class TalhaoService {
                 ));
     }
 
+    private static String paraTexto(JsonNode geometria) {
+        return geometria == null || geometria.isNull() ? null : geometria.toString();
+    }
+
+    private static JsonNode paraJson(String geometria) {
+        return geometria == null ? null : JSON.readTree(geometria);
+    }
+
     private static TalhaoResponse paraResponse(Talhao talhao) {
         return new TalhaoResponse(
                 talhao.getId(),
                 talhao.getIdentificacao(),
                 talhao.getAreaHectares(),
-                talhao.getGeometria(),
+                paraJson(talhao.getGeometria()),
                 talhao.getFazenda().getId()
         );
     }
