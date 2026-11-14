@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +32,15 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     private PerfilUsuario perfil;
 
+    @Column(nullable = false)
+    private Boolean ativo = true;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @OneToMany(mappedBy = "usuario")
     private List<Fazenda> fazendas = new ArrayList<>();
 
@@ -49,5 +59,25 @@ public class Usuario {
 
     public void alterarSenha(String senhaHash) {
         this.senhaHash = senhaHash;
+    }
+
+    public void ativar(){
+        this.ativo = true;
+    }
+
+    public void desativar() {
+        this.ativo = false;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

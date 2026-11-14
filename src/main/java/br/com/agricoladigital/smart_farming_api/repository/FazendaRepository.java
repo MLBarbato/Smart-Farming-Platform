@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface FazendaRepository extends JpaRepository<Fazenda, Long> {
     List<Fazenda> findAllByUsuario_Id(Long usuarioId);
+
+    boolean existsByUsuario_Id(Long usuarioId);
+
+    boolean existsByIdAndUsuario_Id(Long id, Long usuarioId);
 }

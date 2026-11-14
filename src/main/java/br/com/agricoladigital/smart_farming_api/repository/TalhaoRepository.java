@@ -10,4 +10,6 @@ public interface TalhaoRepository extends JpaRepository<Talhao, Long> {
     List<Talhao> findAllByFazenda_Id(Long fazendaId);
 
     Optional<Talhao> findByIdAndFazenda_Id(Long id, Long fazendaId);
+
+    boolean existsByFazenda_Id(Long fazendaId);
 }

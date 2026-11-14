@@ -3,6 +3,8 @@ package br.com.agricoladigital.smart_farming_api.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "talhao")
@@ -21,7 +23,9 @@ public class Talhao {
     @Column(name = "area_hectares", nullable = false)
     private Double areaHectares;
 
-    @Column(length = 255)
+    /** GeoJSON do tipo Polygon, guardado como JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
     private String geometria;
 
     @ManyToOne(fetch = FetchType.LAZY)

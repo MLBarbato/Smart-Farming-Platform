@@ -1,0 +1,3 @@
+UPDATE usuario
+SET perfil = 'AGRICULTOR'
+WHERE perfil IN ('GESTOR', 'RESPONSAVEL_TECNICO');

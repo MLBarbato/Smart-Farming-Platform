@@ -24,20 +24,49 @@ public class Fazenda {
     @Column(name = "area_total", nullable = false)
     private Double areaTotal;
 
+    private Double latitude;
+
+    private Double longitude;
+
+    @Column(length = 100)
+    private String cidade;
+
+    @Column(length = 2)
+    private String estado;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
 
-    public Fazenda(String nome, String localizacao, Double areaTotal, Usuario usuario) {
-        this.nome = nome;
-        this.localizacao = localizacao;
-        this.areaTotal = areaTotal;
+    public Fazenda(
+            String nome,
+            String localizacao,
+            Double areaTotal,
+            Double latitude,
+            Double longitude,
+            String cidade,
+            String estado,
+            Usuario usuario
+    ) {
         this.usuario = usuario;
+        atualizar(nome, localizacao, areaTotal, latitude, longitude, cidade, estado);
     }
 
-    public void atualizar(String nome, String localizacao, Double areaTotal) {
+    public void atualizar(
+            String nome,
+            String localizacao,
+            Double areaTotal,
+            Double latitude,
+            Double longitude,
+            String cidade,
+            String estado
+    ) {
         this.nome = nome;
         this.localizacao = localizacao;
         this.areaTotal = areaTotal;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.cidade = cidade;
+        this.estado = estado == null ? null : estado.toUpperCase(java.util.Locale.ROOT);
     }
 }

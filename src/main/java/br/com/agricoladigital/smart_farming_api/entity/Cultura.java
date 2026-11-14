@@ -15,18 +15,19 @@ public class Cultura {
     @Column(name = "id_cultura")
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, unique = true, length = 100)
     private String nome;
-
-    @Column(name = "tipo_plantio", length = 100)
-    private String tipoPlantio;
 
     @Column(name = "ciclo_dias")
     private Integer cicloDias;
 
-    public Cultura(String nome, String tipoPlantio, Integer cicloDias) {
+    public Cultura(String nome, Integer cicloDias) {
         this.nome = nome;
-        this.tipoPlantio = tipoPlantio;
+        this.cicloDias = cicloDias;
+    }
+
+    public void atualizar(String nome, Integer cicloDias) {
+        this.nome = nome;
         this.cicloDias = cicloDias;
     }
 }
