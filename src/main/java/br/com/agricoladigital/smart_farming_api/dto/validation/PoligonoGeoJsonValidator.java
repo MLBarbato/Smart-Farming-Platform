@@ -1,5 +1,6 @@
 package br.com.agricoladigital.smart_farming_api.dto.validation;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import tools.jackson.databind.JsonNode;
@@ -22,7 +23,7 @@ public class PoligonoGeoJsonValidator implements ConstraintValidator<PoligonoGeo
         return false;
     }
 
-    /** Retorna o motivo da invalidade, ou {@code null} quando o polígono é válido. */
+    @Schema(description = "Retorna o motivo da invalidade, ou null quando o polígono é válido.")
     static String verificar(JsonNode geometria) {
         if (!geometria.isObject()) {
             return "esperado um objeto GeoJSON";

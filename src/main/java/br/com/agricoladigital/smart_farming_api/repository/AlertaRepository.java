@@ -19,10 +19,10 @@ import java.util.Optional;
 public interface AlertaRepository extends JpaRepository<Alerta, Long>, JpaSpecificationExecutor<Alerta> {
     /** Busca paginada com tudo o que a resposta precisa já carregado (sem consultas extras por linha). */
     @Override
-    @EntityGraph(attributePaths = {"talhao", "regra", "atendente", "leitura", "leitura.dispositivo"})
+    @EntityGraph(attributePaths = {"talhao", "talhao.fazenda", "regra", "atendente", "leitura", "leitura.dispositivo"})
     Page<Alerta> findAll(Specification<Alerta> filtro, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"talhao", "regra", "atendente", "leitura", "leitura.dispositivo"})
+    @EntityGraph(attributePaths = {"talhao", "talhao.fazenda", "regra", "atendente", "leitura", "leitura.dispositivo"})
     Optional<Alerta> findByIdAndTalhao_Fazenda_Id(Long id, Long fazendaId);
 
     boolean existsByTalhao_Id(Long talhaoId);

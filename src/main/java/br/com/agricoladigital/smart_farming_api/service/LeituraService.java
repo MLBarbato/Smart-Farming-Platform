@@ -1,6 +1,8 @@
 package br.com.agricoladigital.smart_farming_api.service;
 
+import br.com.agricoladigital.smart_farming_api.dto.response.LeituraAgregadaResponse;
 import br.com.agricoladigital.smart_farming_api.dto.response.LeituraResponse;
+import br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao;
 import br.com.agricoladigital.smart_farming_api.dto.response.SensorLeituraAtualResponse;
 import br.com.agricoladigital.smart_farming_api.entity.Leitura;
 import br.com.agricoladigital.smart_farming_api.entity.OrigemLeitura;
@@ -18,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -35,6 +40,8 @@ import java.util.List;
 public class LeituraService {
     public static final int LIMITE_PADRAO = 500;
     public static final int LIMITE_MAXIMO = 5000;
+    /** Máximo de intervalos de uma consulta agregada. */
+    public static final int MAX_PONTOS = 1000;
     static final Duration JANELA_PADRAO = Duration.ofHours(24);
     /** Tolerância para relógios de sensores levemente adiantados. */
     static final Duration TOLERANCIA_FUTURO = Duration.ofMinutes(5);
@@ -144,6 +151,54 @@ public class LeituraService {
         );
         Collections.reverse(encontradas);
         return encontradas.stream().map(leitura -> paraResponse(sensor, leitura)).toList();
+    }
+
+    /** Leituras agregadas de um sensor do talhão (ver {@link #agregadasDoSensor}). */
+    public LeituraAgregadaResponse agregadas(
+            Long fazendaId, Long talhaoId, Long sensorId, OffsetDateTime de, OffsetDateTime ate,
+            IntervaloAgregacao intervalo, String fuso
+    ) {
+        return agregadasDoSensor(sensorService.localizar(fazendaId, talhaoId, sensorId), de, ate, intervalo, fuso);
+    }
+
+    /**
+     * Mínimo, média, máximo e quantidade das leituras por hora ou por dia (padrão: por hora, últimos 7 dias; por dia,
+     * últimos 30). Os intervalos seguem o fuso informado (padrão UTC) e, ao todo, são no máximo {@value #MAX_PONTOS}.
+     */
+    public LeituraAgregadaResponse agregadasDoSensor(
+            Sensor sensor, OffsetDateTime de, OffsetDateTime ate, IntervaloAgregacao intervalo, String fuso
+    ) {
+        IntervaloAgregacao unidade = intervalo == null ? IntervaloAgregacao.HORA : intervalo;
+        String zona = fuso == null || fuso.isBlank() ? "UTC" : fuso.trim();
+        try {
+            ZoneId.of(zona);
+        } catch (DateTimeException erro) {
+            throw new RegraDeNegocioException("Fuso inválido: use um nome IANA, como America/Sao_Paulo.");
+        }
+        LocalDateTime fim = ate != null ? paraUtc(ate) : agoraUtc();
+        LocalDateTime inicio = de != null ? paraUtc(de) : fim.minus(unidade.getPeriodoPadrao());
+        if (inicio.isAfter(fim)) {
+            throw new RegraDeNegocioException("'de' deve ser anterior ou igual a 'ate'.");
+        }
+        if (Duration.between(inicio, fim).dividedBy(unidade.getDuracao()) > MAX_PONTOS) {
+            throw new RegraDeNegocioException("O período tem mais de " + MAX_PONTOS + " intervalos de "
+                    + unidade.name().toLowerCase() + "; reduza o período ou use o intervalo DIA.");
+        }
+        List<LeituraAgregadaResponse.Ponto> pontos = leituraRepository
+                .agregar(sensor.getId(), unidade.getUnidadeSql(), zona, inicio, fim).stream()
+                .map(linha -> new LeituraAgregadaResponse.Ponto(
+                        Instant.ofEpochSecond(((Number) linha[0]).longValue()).atOffset(ZoneOffset.UTC),
+                        ((Number) linha[1]).doubleValue(),
+                        arredondar(((Number) linha[2]).doubleValue()),
+                        ((Number) linha[3]).doubleValue(),
+                        ((Number) linha[4]).longValue()))
+                .toList();
+        return new LeituraAgregadaResponse(sensor.getId(), sensor.getTipoSensor(), sensor.getUnidadeMedida(), unidade,
+                zona, inicio.atOffset(ZoneOffset.UTC), fim.atOffset(ZoneOffset.UTC), pontos);
+    }
+
+    private static double arredondar(double valor) {
+        return Math.round(valor * 1000.0) / 1000.0;
     }
 
     public LeituraResponse ultima(Long fazendaId, Long talhaoId, Long sensorId) {

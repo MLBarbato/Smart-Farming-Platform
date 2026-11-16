@@ -83,4 +83,25 @@ public interface LeituraRepository extends JpaRepository<Leitura, Long> {
             @Param("desde") LocalDateTime desde,
             @Param("valor") double valor
     );
+
+    /**
+     * Agrega as leituras do dispositivo em [de, ate] por intervalo ({@code date_trunc} no fuso informado).
+     * Cada linha: início do intervalo (época, em segundos), mínimo, média, máximo e quantidade.
+     */
+    @Query(value = """
+            select cast(extract(epoch from (date_trunc(:unidade, (l.data_hora at time zone 'UTC') at time zone :fuso)
+                                            at time zone :fuso)) as bigint),
+                   min(l.valor), avg(l.valor), max(l.valor), count(*)
+            from leitura l
+            where l.id_dispositivo = :dispositivoId and l.data_hora >= :de and l.data_hora <= :ate
+            group by 1
+            order by 1
+            """, nativeQuery = true)
+    List<Object[]> agregar(
+            @Param("dispositivoId") Long dispositivoId,
+            @Param("unidade") String unidade,
+            @Param("fuso") String fuso,
+            @Param("de") LocalDateTime de,
+            @Param("ate") LocalDateTime ate
+    );
 }

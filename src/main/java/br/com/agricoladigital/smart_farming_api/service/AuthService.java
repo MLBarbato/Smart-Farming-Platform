@@ -90,7 +90,8 @@ public class AuthService {
                 tokenService.gerarAccessToken(usuario),
                 refreshTokenService.emitir(usuario),
                 TIPO_TOKEN,
-                tokenService.expiracaoEmSegundos()
+                tokenService.expiracaoEmSegundos(),
+                UsuarioService.paraResponse(usuario)
         );
     }
 }

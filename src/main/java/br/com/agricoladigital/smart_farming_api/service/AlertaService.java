@@ -76,6 +76,52 @@ public class AlertaService {
             Integer tamanho
     ) {
         exigirFazenda(fazendaId);
+        validar(de, ate, pagina, tamanho);
+        if (talhaoId != null && talhaoRepository.findByIdAndFazenda_Id(talhaoId, fazendaId).isEmpty()) {
+            throw new RecursoNaoEncontradoException("Talhão não encontrado nesta fazenda.");
+        }
+        Specification<Alerta> base = (root, query, cb) -> cb.equal(root.get("talhao").get("fazenda").get("id"), fazendaId);
+        return pesquisar(base, status, evento, criticidade, talhaoId, de, ate, pagina, tamanho);
+    }
+
+    /**
+     * Alertas de todas as fazendas do usuário (de todas, para o administrador), com os mesmos filtros da
+     * listagem por fazenda mais {@code fazendaId}. Fazenda de outro usuário se comporta como inexistente.
+     */
+    @Transactional(readOnly = true)
+    public PaginaResponse<AlertaResponse> listarDoUsuario(
+            Long usuarioId,
+            boolean administrador,
+            Long fazendaId,
+            Collection<StatusAlerta> status,
+            EventoAlerta evento,
+            CriticidadeAlerta criticidade,
+            Long talhaoId,
+            OffsetDateTime de,
+            OffsetDateTime ate,
+            Integer pagina,
+            Integer tamanho
+    ) {
+        validar(de, ate, pagina, tamanho);
+        if (fazendaId != null) {
+            boolean acessivel = administrador ? fazendaRepository.existsById(fazendaId)
+                    : fazendaRepository.existsByIdAndUsuario_Id(fazendaId, usuarioId);
+            if (!acessivel) {
+                throw new RecursoNaoEncontradoException("Fazenda não encontrada.");
+            }
+        }
+        Specification<Alerta> base = (root, query, cb) -> cb.conjunction();
+        if (!administrador) {
+            base = base.and((root, query, cb) ->
+                    cb.equal(root.get("talhao").get("fazenda").get("usuario").get("id"), usuarioId));
+        }
+        if (fazendaId != null) {
+            base = base.and((root, query, cb) -> cb.equal(root.get("talhao").get("fazenda").get("id"), fazendaId));
+        }
+        return pesquisar(base, status, evento, criticidade, talhaoId, de, ate, pagina, tamanho);
+    }
+
+    private static void validar(OffsetDateTime de, OffsetDateTime ate, Integer pagina, Integer tamanho) {
         int numero = pagina == null ? 0 : pagina;
         int porPagina = tamanho == null ? TAMANHO_PADRAO : tamanho;
         if (numero < 0 || porPagina < 1 || porPagina > TAMANHO_MAXIMO) {
@@ -85,11 +131,19 @@ public class AlertaService {
         if (de != null && ate != null && de.isAfter(ate)) {
             throw new RegraDeNegocioException("O início do período não pode ser posterior ao fim.");
         }
-        if (talhaoId != null && talhaoRepository.findByIdAndFazenda_Id(talhaoId, fazendaId).isEmpty()) {
-            throw new RecursoNaoEncontradoException("Talhão não encontrado nesta fazenda.");
-        }
+    }
 
-        Specification<Alerta> filtro = (root, query, cb) -> cb.equal(root.get("talhao").get("fazenda").get("id"), fazendaId);
+    private PaginaResponse<AlertaResponse> pesquisar(
+            Specification<Alerta> filtro,
+            Collection<StatusAlerta> status,
+            EventoAlerta evento,
+            CriticidadeAlerta criticidade,
+            Long talhaoId,
+            OffsetDateTime de,
+            OffsetDateTime ate,
+            Integer pagina,
+            Integer tamanho
+    ) {
         if (status != null && !status.isEmpty()) {
             filtro = filtro.and((root, query, cb) -> root.get("status").in(status));
         }
@@ -110,7 +164,7 @@ public class AlertaService {
             LocalDateTime fim = utc(ate);
             filtro = filtro.and((root, query, cb) -> cb.lessThanOrEqualTo(root.<LocalDateTime>get("dataHora"), fim));
         }
-        PageRequest pageable = PageRequest.of(numero, porPagina,
+        PageRequest pageable = PageRequest.of(pagina == null ? 0 : pagina, tamanho == null ? TAMANHO_PADRAO : tamanho,
                 Sort.by(Sort.Direction.DESC, "dataHora").and(Sort.by(Sort.Direction.DESC, "id")));
         return PaginaResponse.de(alertaRepository.findAll(filtro, pageable).map(AlertaService::paraResponse));
     }
@@ -174,6 +228,8 @@ public class AlertaService {
         return new AlertaResponse(
                 a.getId(),
                 a.getTalhao().getId(),
+                a.getTalhao().getFazenda().getId(),
+                a.getTalhao().getFazenda().getNome(),
                 a.getTalhao().getIdentificacao(),
                 a.getEvento(),
                 a.getCriticidade(),

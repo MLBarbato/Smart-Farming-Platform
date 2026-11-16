@@ -12,6 +12,9 @@ import br.com.agricoladigital.smart_farming_api.controller.ResumoController;
 import br.com.agricoladigital.smart_farming_api.controller.EstacaoController;
 import br.com.agricoladigital.smart_farming_api.controller.PlantioController;
 import br.com.agricoladigital.smart_farming_api.controller.AlertaController;
+import br.com.agricoladigital.smart_farming_api.controller.PlantioFazendaController;
+import br.com.agricoladigital.smart_farming_api.controller.AlertaGlobalController;
+import br.com.agricoladigital.smart_farming_api.controller.RecomendacaoIrrigacaoController;
 import br.com.agricoladigital.smart_farming_api.controller.SimuladorController;
 import br.com.agricoladigital.smart_farming_api.controller.RegraAlertaController;
 import br.com.agricoladigital.smart_farming_api.controller.PrevisaoController;
@@ -32,6 +35,7 @@ import br.com.agricoladigital.smart_farming_api.exception.PrevisaoIndisponivelEx
 import br.com.agricoladigital.smart_farming_api.repository.FazendaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.UsuarioRepository;
 import br.com.agricoladigital.smart_farming_api.service.AlertaService;
+import br.com.agricoladigital.smart_farming_api.service.RecomendacaoIrrigacaoService;
 import br.com.agricoladigital.smart_farming_api.service.CenarioSimulacaoService;
 import br.com.agricoladigital.smart_farming_api.service.AuthService;
 import br.com.agricoladigital.smart_farming_api.service.CulturaService;
@@ -69,7 +73,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = {AuthController.class, UsuarioController.class, FazendaController.class, TalhaoController.class,
-        CulturaController.class, PlantioController.class, SensorController.class, LeituraController.class, MapaController.class, ResumoController.class, PrevisaoController.class, EstacaoController.class, RegraAlertaController.class, AlertaController.class, SimuladorController.class})
+        CulturaController.class, PlantioController.class, SensorController.class, LeituraController.class, MapaController.class, ResumoController.class, PrevisaoController.class, EstacaoController.class, RegraAlertaController.class, AlertaController.class, AlertaGlobalController.class, PlantioFazendaController.class, SimuladorController.class, RecomendacaoIrrigacaoController.class})
 @Import({
         SecurityConfig.class, CorsConfig.class, JwtConfig.class, TokenService.class, SegurancaErrorHandler.class,
         UsuarioAtivoJwtConverter.class, AcessoService.class, ApiExceptionHandler.class
@@ -100,6 +104,7 @@ class SegurancaApiTest {
     @MockitoBean private EstacaoService estacaoService;
     @MockitoBean private RegraAlertaService regraAlertaService;
     @MockitoBean private AlertaService alertaService;
+    @MockitoBean private RecomendacaoIrrigacaoService recomendacaoIrrigacaoService;
     @MockitoBean private CenarioSimulacaoService cenarioSimulacaoService;
 
     private Usuario usuario(long id, PerfilUsuario perfil, boolean ativo) {
@@ -265,7 +270,7 @@ class SegurancaApiTest {
 
     @Test
     void loginERegistroSaoPublicos() throws Exception {
-        when(authService.login(any(), any())).thenReturn(new TokenResponse("a", "r", "Bearer", 900));
+        when(authService.login(any(), any())).thenReturn(new TokenResponse("a", "r", "Bearer", 900, null));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -661,6 +666,119 @@ class SegurancaApiTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/v1/simulador/cenario").header("Authorization", bearer(admin))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"cenario\":\"TERREMOTO\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void parametrosDeIrrigacaoDaCulturaForaDaFaixaRetornam400() throws Exception {
+        Usuario admin = usuario(2, PerfilUsuario.ADMINISTRADOR, true);
+        for (String corpo : List.of(
+                "{\"nome\":\"Soja\",\"umidadeMinima\":150,\"umidadeIdeal\":40,\"profundidadeRaizCm\":60}",
+                "{\"nome\":\"Soja\",\"umidadeMinima\":0,\"umidadeIdeal\":40,\"profundidadeRaizCm\":60}",
+                "{\"nome\":\"Soja\",\"umidadeMinima\":30,\"umidadeIdeal\":40,\"profundidadeRaizCm\":500}",
+                "{\"nome\":\"Soja\",\"umidadeMinima\":30,\"umidadeIdeal\":40,\"profundidadeRaizCm\":0}")) {
+            mockMvc.perform(put("/api/v1/culturas/1").header("Authorization", bearer(admin))
+                            .contentType(MediaType.APPLICATION_JSON).content(corpo))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void recomendacoesDeIrrigacaoSoSaoAcessiveisAoDonoDaFazendaEAoAdministrador() throws Exception {
+        Usuario dono = usuario(1, PerfilUsuario.AGRICULTOR, true);
+        Usuario admin = usuario(2, PerfilUsuario.ADMINISTRADOR, true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(10L, 1L)).thenReturn(true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(20L, 1L)).thenReturn(false);
+        String base = "/api/v1/fazendas/%d/recomendacoes-irrigacao";
+
+        mockMvc.perform(get(base.formatted(10))).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(base.formatted(10)).header("Authorization", bearer(dono))).andExpect(status().isOk());
+        mockMvc.perform(get(base.formatted(10) + "/atuais").header("Authorization", bearer(dono))).andExpect(status().isOk());
+        mockMvc.perform(get(base.formatted(10) + "/5").header("Authorization", bearer(dono))).andExpect(status().isOk());
+        mockMvc.perform(post(base.formatted(10) + "/calcular").header("Authorization", bearer(dono))).andExpect(status().isOk());
+        verify(recomendacaoIrrigacaoService).calcular(10L);
+
+        mockMvc.perform(get(base.formatted(20)).header("Authorization", bearer(dono))).andExpect(status().isForbidden());
+        mockMvc.perform(get(base.formatted(20) + "/atuais").header("Authorization", bearer(dono))).andExpect(status().isForbidden());
+        mockMvc.perform(post(base.formatted(20) + "/calcular").header("Authorization", bearer(dono))).andExpect(status().isForbidden());
+        verify(recomendacaoIrrigacaoService, times(1)).calcular(anyLong());
+
+        mockMvc.perform(get(base.formatted(20)).header("Authorization", bearer(admin))).andExpect(status().isOk());
+    }
+
+    @Test
+    void filtroInvalidoDeRecomendacoesRetorna400() throws Exception {
+        Usuario admin = usuario(2, PerfilUsuario.ADMINISTRADOR, true);
+        mockMvc.perform(get("/api/v1/fazendas/10/recomendacoes-irrigacao?situacao=TALVEZ").header("Authorization", bearer(admin)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/fazendas/10/recomendacoes-irrigacao?de=ontem").header("Authorization", bearer(admin)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void qualquerUsuarioAutenticadoConsultaOProprioPerfilEmMe() throws Exception {
+        Usuario agricultor = usuario(1, PerfilUsuario.AGRICULTOR, true);
+        when(usuarioService.buscar(1L)).thenReturn(
+                new UsuarioResponse(1L, "Usuario 1", "u1@example.com", PerfilUsuario.AGRICULTOR, true));
+
+        mockMvc.perform(get("/api/v1/usuarios/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/usuarios/me").header("Authorization", bearer(agricultor)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("u1@example.com"))
+                .andExpect(jsonPath("$.perfil").value("AGRICULTOR"));
+        verify(usuarioService).buscar(1L);
+    }
+
+    @Test
+    void listagemGlobalDeAlertasExigeLoginEUsaOUsuarioDoToken() throws Exception {
+        Usuario agricultor = usuario(1, PerfilUsuario.AGRICULTOR, true);
+        Usuario admin = usuario(2, PerfilUsuario.ADMINISTRADOR, true);
+
+        mockMvc.perform(get("/api/v1/alertas")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/alertas?status=ABERTO,EM_ATENDIMENTO&fazendaId=10")
+                        .header("Authorization", bearer(agricultor)))
+                .andExpect(status().isOk());
+        verify(alertaService).listarDoUsuario(eq(1L), eq(false), eq(10L), any(), any(), any(), any(), any(), any(),
+                any(), any());
+        mockMvc.perform(get("/api/v1/alertas").header("Authorization", bearer(admin))).andExpect(status().isOk());
+        verify(alertaService).listarDoUsuario(eq(2L), eq(true), any(), any(), any(), any(), any(), any(), any(),
+                any(), any());
+        mockMvc.perform(get("/api/v1/alertas?criticidade=URGENTE").header("Authorization", bearer(agricultor)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void leiturasAgregadasSeguemAPropriedadeDaFazenda() throws Exception {
+        Usuario dono = usuario(1, PerfilUsuario.AGRICULTOR, true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(10L, 1L)).thenReturn(true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(20L, 1L)).thenReturn(false);
+        String sensor = "/api/v1/fazendas/%d/talhoes/3/sensores/5/leituras/agregadas?intervalo=DIA&fuso=America/Sao_Paulo";
+        String estacao = "/api/v1/fazendas/%d/estacao/leituras/agregadas?variavel=TEMPERATURA_AR";
+
+        mockMvc.perform(get(sensor.formatted(10))).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(sensor.formatted(10)).header("Authorization", bearer(dono))).andExpect(status().isOk());
+        mockMvc.perform(get(estacao.formatted(10)).header("Authorization", bearer(dono))).andExpect(status().isOk());
+        mockMvc.perform(get(sensor.formatted(20)).header("Authorization", bearer(dono))).andExpect(status().isForbidden());
+        mockMvc.perform(get(estacao.formatted(20)).header("Authorization", bearer(dono))).andExpect(status().isForbidden());
+        mockMvc.perform(get(sensor.formatted(10).replace("DIA", "SEMANA")).header("Authorization", bearer(dono)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/fazendas/10/estacao/leituras/agregadas").header("Authorization", bearer(dono)))
+                .andExpect(status().isBadRequest());   // variavel é obrigatória
+    }
+
+    @Test
+    void plantiosDaFazendaSoParaODonoOuAdministrador() throws Exception {
+        Usuario dono = usuario(1, PerfilUsuario.AGRICULTOR, true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(10L, 1L)).thenReturn(true);
+        when(fazendaRepository.existsByIdAndUsuario_Id(20L, 1L)).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/fazendas/10/plantios")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/fazendas/10/plantios?status=EM_CULTIVO&safra=2026/2027")
+                        .header("Authorization", bearer(dono)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/fazendas/20/plantios").header("Authorization", bearer(dono)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/fazendas/10/plantios?status=TALVEZ").header("Authorization", bearer(dono)))
                 .andExpect(status().isBadRequest());
     }
 }

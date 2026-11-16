@@ -36,6 +36,7 @@ class PlantioServiceTest {
     @Mock private PlantioRepository plantioRepository;
     @Mock private TalhaoRepository talhaoRepository;
     @Mock private CulturaRepository culturaRepository;
+    @Mock private br.com.agricoladigital.smart_farming_api.repository.FazendaRepository fazendaRepository;
     @InjectMocks private PlantioService plantioService;
 
     private Talhao talhao;
@@ -404,5 +405,22 @@ class PlantioServiceTest {
 
         assertThrows(ConflitoException.class, () -> plantioService.registrarColheita(1L, 5L, 9L,
                 new RegistrarColheitaRequest(PLANTIO.plusDays(100), 7000.0)));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listagemDaFazendaExigeFazendaExistenteEAplicaOsFiltros() {
+        when(fazendaRepository.existsById(9L)).thenReturn(false);
+        assertThrows(RecursoNaoEncontradoException.class,
+                () -> plantioService.listarDaFazenda(9L, null, null, null, null));
+        verify(plantioRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Sort.class));
+
+        when(fazendaRepository.existsById(1L)).thenReturn(true);
+        when(plantioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Sort.class))).thenReturn(java.util.List.of());
+        assertTrue(plantioService.listarDaFazenda(1L, 2L, 3L, StatusPlantio.EM_CULTIVO, " 2026/2027 ").isEmpty());
+        verify(plantioRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Sort.class));
     }
 }

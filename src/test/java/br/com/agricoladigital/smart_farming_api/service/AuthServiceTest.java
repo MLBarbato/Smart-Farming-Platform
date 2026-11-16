@@ -73,6 +73,9 @@ class AuthServiceTest {
         assertEquals("refresh", response.refreshToken());
         assertEquals("Bearer", response.tipo());
         assertEquals(900L, response.expiraEmSegundos());
+        assertEquals("Ana", response.usuario().nome());
+        assertEquals("ana@example.com", response.usuario().email());
+        assertEquals(PerfilUsuario.AGRICULTOR, response.usuario().perfil());
     }
 
     @Test
@@ -122,6 +125,7 @@ class AuthServiceTest {
 
         assertEquals("novo-access", response.accessToken());
         assertEquals("novo-refresh", response.refreshToken());
+        assertEquals("ana@example.com", response.usuario().email());
         verify(refreshTokenService, times(1)).consumir(any());
     }
 

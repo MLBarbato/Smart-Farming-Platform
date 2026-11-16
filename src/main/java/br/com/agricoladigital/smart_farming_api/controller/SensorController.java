@@ -1,5 +1,10 @@
 package br.com.agricoladigital.smart_farming_api.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import br.com.agricoladigital.smart_farming_api.config.Erro;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import br.com.agricoladigital.smart_farming_api.dto.request.AlterarStatusSensorRequest;
 import br.com.agricoladigital.smart_farming_api.dto.request.SensorRequest;
 import br.com.agricoladigital.smart_farming_api.dto.response.SensorResponse;
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.util.List;
 
+@Tag(name = "Sensores", description = "Sensores de um talhão (variável, estado e instalação).")
 @RestController
 @RequestMapping("/api/v1/fazendas/{fazendaId}/talhoes/{talhaoId}/sensores")
 @PreAuthorize("@acesso.podeAcessarFazenda(authentication, #fazendaId)")
@@ -24,6 +30,8 @@ public class SensorController {
         this.sensorService = sensorService;
     }
 
+    @Operation(summary = "Criar sensor", description = "O código é único; nasce ATIVO. A unidade vem fixa da variável.")
+    @Erro(codigo = "409", descricao = "Código já cadastrado")
     @PostMapping
     public ResponseEntity<SensorResponse> criar(
             @PathVariable Long fazendaId,
@@ -36,6 +44,7 @@ public class SensorController {
         )).body(response);
     }
 
+    @Operation(summary = "Listar sensores do talhão", description = "Filtros opcionais: variavel e status.")
     @GetMapping
     public List<SensorResponse> listar(
             @PathVariable Long fazendaId,
@@ -46,6 +55,7 @@ public class SensorController {
         return sensorService.listar(fazendaId, talhaoId, variavel, status);
     }
 
+    @Operation(summary = "Consultar sensor")
     @GetMapping("/{sensorId}")
     public SensorResponse buscar(
             @PathVariable Long fazendaId,
@@ -55,6 +65,7 @@ public class SensorController {
         return sensorService.buscar(fazendaId, talhaoId, sensorId);
     }
 
+    @Operation(summary = "Mudar o estado do sensor", description = "ATIVO, INATIVO ou MANUTENCAO. Só sensores ATIVO aceitam leituras.")
     @PatchMapping("/{sensorId}/status")
     public SensorResponse alterarStatus(
             @PathVariable Long fazendaId,
@@ -65,6 +76,8 @@ public class SensorController {
         return sensorService.alterarStatus(fazendaId, talhaoId, sensorId, request);
     }
 
+    @Operation(summary = "Excluir sensor")
+    @Erro(codigo = "409", descricao = "Sensor que já tem leituras (desative-o em vez de excluir)")
     @DeleteMapping("/{sensorId}")
     public ResponseEntity<Void> excluir(
             @PathVariable Long fazendaId,

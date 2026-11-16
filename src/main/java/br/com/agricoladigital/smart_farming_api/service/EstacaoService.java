@@ -1,7 +1,9 @@
 package br.com.agricoladigital.smart_farming_api.service;
 
 import br.com.agricoladigital.smart_farming_api.dto.response.EstacaoResponse;
+import br.com.agricoladigital.smart_farming_api.dto.response.LeituraAgregadaResponse;
 import br.com.agricoladigital.smart_farming_api.dto.response.LeituraResponse;
+import br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao;
 import br.com.agricoladigital.smart_farming_api.entity.EstacaoMeteorologica;
 import br.com.agricoladigital.smart_farming_api.entity.Fazenda;
 import br.com.agricoladigital.smart_farming_api.entity.Leitura;
@@ -153,6 +155,19 @@ public class EstacaoService {
                 .findFirst()
                 .orElseThrow(() -> new RegraDeNegocioException("A estação não mede a variável " + variavel + "."));
         return leituraService.historicoDoSensor(sensor, de, ate, limite);
+    }
+
+    /** Leituras agregadas (hora ou dia) de uma variável da estação. */
+    public LeituraAgregadaResponse agregadas(
+            Long fazendaId, VariavelMonitorada variavel, OffsetDateTime de, OffsetDateTime ate,
+            IntervaloAgregacao intervalo, String fuso
+    ) {
+        EstacaoMeteorologica estacao = cadastro.encontrar(fazendaId);
+        Sensor sensor = sensorRepository.listarDaEstacao(estacao.getId()).stream()
+                .filter(s -> s.getTipoSensor() == variavel)
+                .findFirst()
+                .orElseThrow(() -> new RegraDeNegocioException("A estação não mede a variável " + variavel + "."));
+        return leituraService.agregadasDoSensor(sensor, de, ate, intervalo, fuso);
     }
 
     private static LeituraResponse paraResponse(Sensor sensor, Leitura leitura) {

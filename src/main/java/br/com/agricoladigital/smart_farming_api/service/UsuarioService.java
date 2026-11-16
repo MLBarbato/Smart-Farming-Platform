@@ -127,7 +127,7 @@ public class UsuarioService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado: " + id));
     }
 
-    private static UsuarioResponse paraResponse(Usuario usuario) {
+    static UsuarioResponse paraResponse(Usuario usuario) {
         return new UsuarioResponse(usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getPerfil(), usuario.getAtivo());
     }
 }

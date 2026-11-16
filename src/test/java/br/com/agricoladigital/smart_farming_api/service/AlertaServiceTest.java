@@ -251,4 +251,50 @@ class AlertaServiceTest {
         assertEquals(20, service.listar(7L, null, null, null, null, null, null, null, null).tamanho());
         verify(talhaoRepository, never()).findByIdAndFazenda_Id(anyLong(), anyLong());
     }
+
+    // ---- listagem global (todas as fazendas do usuário) ----
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listagemGlobalDoAgricultorDevolveAlertasComFazenda() {
+        when(alertaRepository.findAll(any(Specification.class), any(Pageable.class))).thenAnswer(i ->
+                new PageImpl<>(List.of(alerta(StatusAlerta.ABERTO)), i.getArgument(1), 1));
+
+        PaginaResponse<AlertaResponse> pagina = service.listarDoUsuario(1L, false, null, null, null, null, null,
+                null, null, null, null);
+
+        assertEquals(1, pagina.totalElementos());
+        assertEquals(7L, pagina.conteudo().get(0).fazendaId());
+        assertEquals("F", pagina.conteudo().get(0).fazendaNome());
+        verify(fazendaRepository, never()).existsByIdAndUsuario_Id(anyLong(), anyLong());
+    }
+
+    @Test
+    void fazendaDeOutroUsuarioSeComportaComoInexistenteNaListagemGlobal() {
+        when(fazendaRepository.existsByIdAndUsuario_Id(9L, 1L)).thenReturn(false);
+
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.listarDoUsuario(1L, false, 9L, null, null,
+                null, null, null, null, null, null));
+        verify(alertaRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
+    void administradorVerificaSoSeAFazendaExiste() {
+        when(fazendaRepository.existsById(9L)).thenReturn(false);
+
+        assertThrows(RecursoNaoEncontradoException.class, () -> service.listarDoUsuario(2L, true, 9L, null, null,
+                null, null, null, null, null, null));
+        verify(fazendaRepository, never()).existsByIdAndUsuario_Id(anyLong(), anyLong());
+    }
+
+    @Test
+    void listagemGlobalValidaPaginacaoEPeriodo() {
+        OffsetDateTime a = AGORA.atOffset(ZoneOffset.UTC);
+        assertThrows(RegraDeNegocioException.class, () -> service.listarDoUsuario(1L, false, null, null, null, null,
+                null, null, null, -1, null));
+        assertThrows(RegraDeNegocioException.class, () -> service.listarDoUsuario(1L, false, null, null, null, null,
+                null, a, a.minusDays(1), null, null));
+        assertThrows(RegraDeNegocioException.class, () -> service.listarDoUsuario(1L, false, null, null, null, null,
+                null, null, null, 0, 101));
+    }
 }

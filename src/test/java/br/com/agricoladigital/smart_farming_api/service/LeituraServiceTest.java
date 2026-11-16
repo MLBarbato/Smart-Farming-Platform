@@ -210,4 +210,53 @@ class LeituraServiceTest {
 
         assertTrue(leituraService.temLeituras(9L));
     }
+
+    // ---- agregação ----
+
+    @Test
+    void agregacaoUsaPorHoraEUltimosSeteDiasPorPadraoEMapeiaAsLinhas() {
+        Sensor sensor = sensor(VariavelMonitorada.TEMPERATURA_AR, StatusDispositivo.ATIVO);
+        when(leituraRepository.agregar(eq(9L), eq("hour"), eq("UTC"), eq(AGORA.minusDays(7)), eq(AGORA)))
+                .thenReturn(java.util.List.<Object[]>of(
+                        new Object[]{1_794_000_000L, 20.0, 22.123456, 24.0, 4L}));
+
+        var resposta = leituraService.agregadasDoSensor(sensor, null, null, null, null);
+
+        assertEquals(br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao.HORA, resposta.intervalo());
+        assertEquals("UTC", resposta.fuso());
+        assertEquals("°C", resposta.unidade());
+        assertEquals(1, resposta.pontos().size());
+        var ponto = resposta.pontos().get(0);
+        assertEquals(java.time.Instant.ofEpochSecond(1_794_000_000L).atOffset(ZoneOffset.UTC), ponto.inicio());
+        assertEquals(22.123, ponto.media());
+        assertEquals(4L, ponto.quantidade());
+    }
+
+    @Test
+    void agregacaoPorDiaUsaUltimos30DiasEOFusoInformado() {
+        Sensor sensor = sensor(VariavelMonitorada.UMIDADE_SOLO, StatusDispositivo.ATIVO);
+        when(leituraRepository.agregar(eq(9L), eq("day"), eq("America/Sao_Paulo"), eq(AGORA.minusDays(30)), eq(AGORA)))
+                .thenReturn(java.util.List.of());
+
+        var resposta = leituraService.agregadasDoSensor(sensor, null, null,
+                br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao.DIA, " America/Sao_Paulo ");
+
+        assertEquals("America/Sao_Paulo", resposta.fuso());
+        assertTrue(resposta.pontos().isEmpty());
+    }
+
+    @Test
+    void agregacaoRejeitaFusoInvalidoPeriodoInvertidoEPeriodoLongoDemais() {
+        Sensor sensor = sensor(VariavelMonitorada.TEMPERATURA_AR, StatusDispositivo.ATIVO);
+        var hora = br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao.HORA;
+        var dia = br.com.agricoladigital.smart_farming_api.entity.IntervaloAgregacao.DIA;
+        java.time.OffsetDateTime agora = AGORA.atOffset(ZoneOffset.UTC);
+
+        assertThrows(RegraDeNegocioException.class, () -> leituraService.agregadasDoSensor(sensor, null, null, hora, "Marte/Olympus"));
+        assertThrows(RegraDeNegocioException.class, () -> leituraService.agregadasDoSensor(sensor, agora, agora.minusDays(1), hora, null));
+        // 60 dias por hora = 1440 intervalos (acima de 1000); por dia cabe
+        assertThrows(RegraDeNegocioException.class, () -> leituraService.agregadasDoSensor(sensor, agora.minusDays(60), agora, hora, null));
+        assertDoesNotThrow(() -> leituraService.agregadasDoSensor(sensor, agora.minusDays(60), agora, dia, null));
+        verify(leituraRepository, times(1)).agregar(any(), eq("day"), any(), any(), any());
+    }
 }

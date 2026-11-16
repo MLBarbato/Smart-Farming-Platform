@@ -12,6 +12,7 @@ import br.com.agricoladigital.smart_farming_api.exception.ConflitoException;
 import br.com.agricoladigital.smart_farming_api.exception.RecursoNaoEncontradoException;
 import br.com.agricoladigital.smart_farming_api.exception.RegraDeNegocioException;
 import br.com.agricoladigital.smart_farming_api.repository.CulturaRepository;
+import br.com.agricoladigital.smart_farming_api.repository.FazendaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.PlantioRepository;
 import br.com.agricoladigital.smart_farming_api.repository.TalhaoRepository;
 import org.springframework.data.domain.Sort;
@@ -34,15 +35,18 @@ public class PlantioService {
     private final PlantioRepository plantioRepository;
     private final TalhaoRepository talhaoRepository;
     private final CulturaRepository culturaRepository;
+    private final FazendaRepository fazendaRepository;
 
     public PlantioService(
             PlantioRepository plantioRepository,
             TalhaoRepository talhaoRepository,
-            CulturaRepository culturaRepository
+            CulturaRepository culturaRepository,
+            FazendaRepository fazendaRepository
     ) {
         this.plantioRepository = plantioRepository;
         this.talhaoRepository = talhaoRepository;
         this.culturaRepository = culturaRepository;
+        this.fazendaRepository = fazendaRepository;
     }
 
     @Transactional
@@ -68,6 +72,36 @@ public class PlantioService {
             filtro = filtro.and((root, query, cb) -> cb.equal(root.get("safra"), safraFiltro));
         }
         return plantioRepository.findAll(filtro, Sort.by(Sort.Direction.DESC, "dataPlantio"))
+                .stream()
+                .map(PlantioService::paraResponse)
+                .toList();
+    }
+
+    /**
+     * Plantios de todos os talhões da fazenda (mais recentes primeiro), com filtros opcionais de talhão, cultura,
+     * estado e safra.
+     */
+    public List<PlantioResponse> listarDaFazenda(
+            Long fazendaId, Long talhaoId, Long culturaId, StatusPlantio status, String safra
+    ) {
+        if (!fazendaRepository.existsById(fazendaId)) {
+            throw new RecursoNaoEncontradoException("Fazenda não encontrada: " + fazendaId);
+        }
+        Specification<Plantio> filtro = (root, query, cb) -> cb.equal(root.get("talhao").get("fazenda").get("id"), fazendaId);
+        if (talhaoId != null) {
+            filtro = filtro.and((root, query, cb) -> cb.equal(root.get("talhao").get("id"), talhaoId));
+        }
+        if (culturaId != null) {
+            filtro = filtro.and((root, query, cb) -> cb.equal(root.get("cultura").get("id"), culturaId));
+        }
+        if (status != null) {
+            filtro = filtro.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (safra != null && !safra.isBlank()) {
+            String safraFiltro = safra.trim();
+            filtro = filtro.and((root, query, cb) -> cb.equal(root.get("safra"), safraFiltro));
+        }
+        return plantioRepository.findAll(filtro, Sort.by(Sort.Direction.DESC, "dataPlantio").and(Sort.by("id")))
                 .stream()
                 .map(PlantioService::paraResponse)
                 .toList();
