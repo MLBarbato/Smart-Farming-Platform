@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,4 +43,25 @@ public interface PlantioRepository extends JpaRepository<Plantio, Long>, JpaSpec
             @Param("infinito") LocalDate infinito,
             @Param("cancelado") StatusPlantio cancelado
     );
+
+    /** Plantios da fazenda no estado informado, já com talhão e cultura carregados. */
+    @Query("""
+            select p from Plantio p
+            join fetch p.cultura
+            join fetch p.talhao t
+            where t.fazenda.id = :fazendaId and p.status = :status
+            """)
+    List<Plantio> buscarPorFazendaEStatus(
+            @Param("fazendaId") Long fazendaId,
+            @Param("status") StatusPlantio status
+    );
+
+    /** Todos os plantios das fazendas informadas, com talhão e cultura carregados. */
+    @Query("""
+            select p from Plantio p
+            join fetch p.cultura
+            join fetch p.talhao t
+            where t.fazenda.id in :fazendaIds
+            """)
+    List<Plantio> buscarPorFazendas(@Param("fazendaIds") Collection<Long> fazendaIds);
 }
