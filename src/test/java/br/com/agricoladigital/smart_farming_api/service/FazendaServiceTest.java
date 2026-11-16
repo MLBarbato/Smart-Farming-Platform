@@ -38,6 +38,9 @@ class FazendaServiceTest {
     @Mock
     private PrevisaoTempoRepository previsaoTempoRepository;
 
+    @Mock
+    private EstacaoCadastro estacaoCadastro;
+
     @InjectMocks
     private FazendaService fazendaService;
 
@@ -95,5 +98,19 @@ class FazendaServiceTest {
         when(fazendaRepository.findById(1L)).thenReturn(Optional.of(fazenda));
 
         assertFalse(fazendaService.buscar(1L).ativa());
+    }
+
+    @Test
+    void excluirRemoveAPrevisaoDerivadaJuntoComAFazenda() {
+        Fazenda fazenda = new Fazenda("Horizonte", "GO", 10.0, null, null, null, null,
+                new Usuario("Ana Silva", "ana@example.com", "hash", PerfilUsuario.AGRICULTOR));
+        when(fazendaRepository.findById(4L)).thenReturn(Optional.of(fazenda));
+        when(talhaoRepository.existsByFazenda_Id(4L)).thenReturn(false);
+
+        fazendaService.excluir(4L);
+
+        verify(previsaoTempoRepository).deleteAllByFazenda_Id(4L);
+        verify(estacaoCadastro).removerSeExistir(4L);
+        verify(fazendaRepository).delete(fazenda);
     }
 }

@@ -41,6 +41,13 @@ app:
     atualizacao-automatica: ${PREVISAO_ATUALIZACAO_AUTOMATICA:true}
     atualizacao-minutos: 180      # intervalo do job que atualiza todas as fazendas com coordenadas
     intervalo-minimo-manual-minutos: 5   # evita chamadas seguidas pelo endpoint de atualização
+  estacao:
+    # Estação virtual: leituras horárias (EXTERNA) do Open-Meteo para as coordenadas da fazenda.
+    atualizacao-automatica: ${ESTACAO_ATUALIZACAO_AUTOMATICA:true}
+    atualizacao-minutos: 60
+    historico-inicial-horas: 72          # histórico carregado quando a estação é criada
+    recuperacao-maxima-horas: 168        # lacunas maiores que isto não são recuperadas
+    intervalo-minimo-manual-minutos: 5   # evita chamadas seguidas pelo endpoint de sincronização
   admin:
     nome: ${ADMIN_NOME:Administrador}
     email: ${ADMIN_EMAIL:}

@@ -23,17 +23,20 @@ public class FazendaService {
     private final UsuarioRepository usuarioRepository;
     private final TalhaoRepository talhaoRepository;
     private final PrevisaoTempoRepository previsaoTempoRepository;
+    private final EstacaoCadastro estacaoCadastro;
 
     public FazendaService(
             FazendaRepository fazendaRepository,
             UsuarioRepository usuarioRepository,
             TalhaoRepository talhaoRepository,
-            PrevisaoTempoRepository previsaoTempoRepository
+            PrevisaoTempoRepository previsaoTempoRepository,
+            EstacaoCadastro estacaoCadastro
     ) {
         this.fazendaRepository = fazendaRepository;
         this.usuarioRepository = usuarioRepository;
         this.talhaoRepository = talhaoRepository;
         this.previsaoTempoRepository = previsaoTempoRepository;
+        this.estacaoCadastro = estacaoCadastro;
     }
 
     @Transactional
@@ -92,11 +95,12 @@ public class FazendaService {
     @Transactional
     public void excluir(Long id) {
         Fazenda fazenda = encontrarFazenda(id);
-        if (talhaoRepository.existsByFazenda_Id(id) || previsaoTempoRepository.existsByFazenda_Id(id)) {
-            throw new ConflitoException(
-                    "Não é possível excluir a fazenda enquanto houver talhões ou previsões vinculados."
-            );
+        if (talhaoRepository.existsByFazenda_Id(id)) {
+            throw new ConflitoException("Não é possível excluir a fazenda enquanto houver talhões vinculados.");
         }
+        // Previsão e estação virtual são dados derivados do provedor externo e saem com a fazenda.
+        previsaoTempoRepository.deleteAllByFazenda_Id(id);
+        estacaoCadastro.removerSeExistir(id);
         fazendaRepository.delete(fazenda);
         fazendaRepository.flush();
     }
