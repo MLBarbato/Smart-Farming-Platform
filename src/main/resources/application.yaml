@@ -52,6 +52,9 @@ app:
     avaliacao-automatica: ${ALERTAS_AVALIACAO_AUTOMATICA:true}
     avaliacao-minutos: 15        # intervalo do job que avalia as regras de todas as fazendas
     reabertura-horas: 6          # espera para reabrir um alerta fechado, salvo criticidade maior
+  monitoramento:
+    # Critério provisório: sensor ATIVO sem leitura há mais que isto conta como "sem leitura recente".
+    sensor-sem-leitura-minutos: ${SENSOR_SEM_LEITURA_MINUTOS:30}
   admin:
     nome: ${ADMIN_NOME:Administrador}
     email: ${ADMIN_EMAIL:}

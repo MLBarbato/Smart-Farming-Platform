@@ -112,7 +112,7 @@ public class TalhaoService {
         return geometria == null || geometria.isNull() ? null : geometria.toString();
     }
 
-    private static JsonNode paraJson(String geometria) {
+    static JsonNode paraJson(String geometria) {
         return geometria == null ? null : JSON.readTree(geometria);
     }
 
