@@ -19,19 +19,30 @@ public class Sensor {
     @JoinColumn(name = "id_dispositivo")
     private Dispositivo dispositivo;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "tipo_sensor", nullable = false, length = 100)
-    private String tipoSensor;
+    private VariavelMonitorada tipoSensor;
 
     @Column(name = "unidade_medida", nullable = false, length = 50)
     private String unidadeMedida;
 
+    /** Estação a que o sensor pertence; nulo nos sensores de talhão. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_estacao")
+    private EstacaoMeteorologica estacao;
+
     public Sensor(
             Dispositivo dispositivo,
-            String tipoSensor,
-            String unidadeMedida
+            VariavelMonitorada tipoSensor
     ) {
         this.dispositivo = dispositivo;
         this.tipoSensor = tipoSensor;
-        this.unidadeMedida = unidadeMedida;
+        this.unidadeMedida = tipoSensor.getUnidade();
+    }
+
+    /** Sensor de uma estação (sem talhão). */
+    public Sensor(Dispositivo dispositivo, VariavelMonitorada tipoSensor, EstacaoMeteorologica estacao) {
+        this(dispositivo, tipoSensor);
+        this.estacao = estacao;
     }
 }

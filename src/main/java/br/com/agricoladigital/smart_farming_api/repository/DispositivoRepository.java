@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DispositivoRepository extends JpaRepository<Dispositivo, Long> {
     boolean existsByTalhao_Id(Long talhaoId);
+
+    boolean existsByCodigoIdentificacao(String codigoIdentificacao);
 }

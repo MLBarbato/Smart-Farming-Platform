@@ -26,13 +26,15 @@ public class Leitura {
     @Column(name = "data_hora", nullable = false)
     private LocalDateTime dataHora;
 
-    @Column(name = "origem_simulada", nullable = false)
-    private Boolean origemSimulada;
+    /** Instante da medição em UTC. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private OrigemLeitura origem;
 
-    public Leitura(Dispositivo dispositivo, Double valor, LocalDateTime dataHora, Boolean origemSimulada) {
+    public Leitura(Dispositivo dispositivo, Double valor, LocalDateTime dataHora, OrigemLeitura origem) {
         this.dispositivo = dispositivo;
         this.valor = valor;
         this.dataHora = dataHora;
-        this.origemSimulada = origemSimulada;
+        this.origem = origem;
     }
 }
