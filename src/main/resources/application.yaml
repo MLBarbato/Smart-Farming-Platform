@@ -55,6 +55,13 @@ app:
   monitoramento:
     # Critério provisório: sensor ATIVO sem leitura há mais que isto conta como "sem leitura recente".
     sensor-sem-leitura-minutos: ${SENSOR_SEM_LEITURA_MINUTOS:30}
+  simulador:
+    # Gera leituras SIMULADAS para os sensores ativos. Desligado por padrão.
+    enabled: ${SIMULADOR_ENABLED:false}
+    intervalo-segundos: ${SIMULADOR_INTERVALO_SEGUNDOS:60}
+    # Histórico retroativo gerado para sensores ativos que ainda não têm leituras (0 desliga).
+    historico-horas: ${SIMULADOR_HISTORICO_HORAS:72}
+    historico-intervalo-minutos: ${SIMULADOR_HISTORICO_INTERVALO_MINUTOS:15}
   admin:
     nome: ${ADMIN_NOME:Administrador}
     email: ${ADMIN_EMAIL:}
