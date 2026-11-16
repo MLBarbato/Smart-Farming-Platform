@@ -72,6 +72,10 @@ app:
     # Histórico retroativo gerado para sensores ativos que ainda não têm leituras (0 desliga).
     historico-horas: ${SIMULADOR_HISTORICO_HORAS:72}
     historico-intervalo-minutos: ${SIMULADOR_HISTORICO_INTERVALO_MINUTOS:15}
+  demo:
+    # Carrega dados de demonstração na subida (usuários, fazendas, leituras, alertas...). Não use em produção.
+    enabled: ${DEMO_DADOS_ENABLED:false}
+    password: ${DEMO_SENHA:}     # senha dos usuários de demonstração (mínimo de 8 caracteres)
   admin:
     nome: ${ADMIN_NOME:Administrador}
     email: ${ADMIN_EMAIL:}
