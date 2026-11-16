@@ -1,9 +1,15 @@
+server:
+  # Atrás do frontend (BFF) ou de um proxy reverso, o IP do usuário vem em X-Forwarded-For. Com "native" o Tomcat
+  # só confia nesse cabeçalho quando a conexão vem de um proxy interno (loopback e redes privadas por padrão;
+  # ajuste com SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES). O limite de tentativas de login usa esse IP.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+
 spring:
   application:
     name: smart-farming-api
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/smart_farming_db
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smart_farming_db}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
 
