@@ -11,7 +11,9 @@ public enum VariavelMonitorada {
     LUMINOSIDADE("lux", 0, 150_000),
     PH_SOLO("pH", 3, 9),
     VELOCIDADE_VENTO("km/h", 0, 150),
-    PRECIPITACAO("mm", 0, 200);
+    PRECIPITACAO("mm", 0, 200),
+    TEMPERATURA_SOLO("°C", -10, 60),
+    CONDUTIVIDADE_ELETRICA("dS/m", 0, 20);
 
     private final String unidade;
     private final double minimo;

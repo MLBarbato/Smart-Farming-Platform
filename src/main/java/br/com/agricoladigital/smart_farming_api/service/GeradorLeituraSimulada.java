@@ -65,6 +65,8 @@ public class GeradorLeituraSimulada {
             case PH_SOLO -> 6.3 + ruido(0.05);
             case VELOCIDADE_VENTO -> ciclo(8, 4, hora, 14) + ruido(2);
             case PRECIPITACAO -> aleatorio.nextDouble() < CHANCE_DE_CHUVA ? 0.2 + aleatorio.nextDouble() * 4.8 : 0;
+            case TEMPERATURA_SOLO -> ciclo(23, 2.5, hora, 16) + ruido(0.3);
+            case CONDUTIVIDADE_ELETRICA -> 1.2 + ruido(0.05);
         };
         double limitado = Math.max(variavel.getMinimo(), Math.min(variavel.getMaximo(), valor));
         return Math.round(limitado * 100) / 100.0;
