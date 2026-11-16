@@ -1,5 +1,6 @@
 package br.com.agricoladigital.smart_farming_api.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import br.com.agricoladigital.smart_farming_api.entity.SituacaoEstacao;
 import br.com.agricoladigital.smart_farming_api.entity.StatusDispositivo;
 import br.com.agricoladigital.smart_farming_api.entity.VariavelMonitorada;
@@ -7,7 +8,7 @@ import br.com.agricoladigital.smart_farming_api.entity.VariavelMonitorada;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/** Indicadores de uma fazenda para o dashboard. Todos os instantes são UTC. */
+@Schema(description = "Indicadores de uma fazenda para o dashboard. Todos os instantes são UTC.")
 public record ResumoFazendaResponse(
         Fazenda fazenda,
         Talhoes talhoes,
@@ -16,15 +17,17 @@ public record ResumoFazendaResponse(
         List<CulturaEmCultivo> culturasEmCultivo,
         List<CondicaoAtual> condicoesAtuais,
         List<ProdutividadeSafra> produtividadePorSafra,
-        /** Estação meteorológica da fazenda; nula se a fazenda não tem estação. */
+        @Schema(description = "Estação meteorológica da fazenda; nula se a fazenda não tem estação.")
         Estacao estacao,
-        /** Alertas abertos da fazenda, por criticidade. */
+        @Schema(description = "Alertas abertos da fazenda, por criticidade.")
         ResumoAlertasResponse alertas,
-        /** Minutos sem leitura a partir dos quais um sensor ativo conta como "sem leitura recente". */
+        @Schema(description = "Recomendações de irrigação atuais dos talhões em cultivo, por situação.")
+        ResumoIrrigacaoResponse irrigacao,
+        @Schema(description = "Minutos sem leitura a partir dos quais um sensor ativo conta como \"sem leitura recente\".")
         int criterioSemLeituraRecenteMinutos,
         OffsetDateTime geradoEm
 ) {
-    /** Estação meteorológica com suas últimas leituras; a data é a da última sincronização (UTC). */
+    @Schema(description = "Estação meteorológica com suas últimas leituras; a data é a da última sincronização (UTC).")
     public record Estacao(
             Long id,
             StatusDispositivo status,
@@ -40,7 +43,7 @@ public record ResumoFazendaResponse(
     public record Talhoes(int total, double areaHectares, int comPlantioEmCultivo, double areaEmCultivoHectares) {
     }
 
-    /** Estados dos sensores; {@code semLeituraRecente} conta só sensores {@code ativos}. */
+    @Schema(description = "Estados dos sensores; semLeituraRecente conta só sensores ativos.")
     public record Sensores(int total, int ativos, int inativos, int emManutencao, int semLeituraRecente) {
     }
 
@@ -50,10 +53,7 @@ public record ResumoFazendaResponse(
     public record CulturaEmCultivo(String cultura, int talhoes, double areaHectares) {
     }
 
-    /**
-     * Resumo de uma variável nas leituras recentes dos sensores ativos da fazenda. Leituras mais
-     * antigas que o critério de "leitura recente" não entram, para não mostrar dado velho como atual.
-     */
+    @Schema(description = "Resumo de uma variável nas leituras recentes dos sensores ativos da fazenda. Leituras mais antigas que o critério de \"leitura recente\" não entram, para não mostrar dado velho como atual.")
     public record CondicaoAtual(
             VariavelMonitorada variavel,
             String unidade,
@@ -65,7 +65,7 @@ public record ResumoFazendaResponse(
     ) {
     }
 
-    /** Produtividade das colheitas da safra: kg colhidos / área dos talhões colhidos. */
+    @Schema(description = "Produtividade das colheitas da safra: kg colhidos / área dos talhões colhidos.")
     public record ProdutividadeSafra(
             String safra,
             int plantiosColhidos,

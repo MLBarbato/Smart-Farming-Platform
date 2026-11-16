@@ -52,6 +52,16 @@ app:
     avaliacao-automatica: ${ALERTAS_AVALIACAO_AUTOMATICA:true}
     avaliacao-minutos: 15        # intervalo do job que avalia as regras de todas as fazendas
     reabertura-horas: 6          # espera para reabrir um alerta fechado, salvo criticidade maior
+  irrigacao:
+    # Parâmetros de demonstração, não validados por agrônomo.
+    calculo-automatico: ${IRRIGACAO_CALCULO_AUTOMATICO:true}
+    calculo-minutos: 180         # intervalo do job que recalcula as recomendações de todas as fazendas
+    validade-horas: 6            # depois disso a recomendação vence e uma nova é gravada
+    janela-umidade-horas: 3      # janela da média de umidade do solo
+    eficiencia-chuva: 0.8        # fração da chuva prevista considerada efetiva
+    temperatura-alta-c: 35       # máxima prevista a partir da qual a demanda aumenta
+    acrescimo-temperatura: 0.2   # aumento da demanda (20 %) em dias quentes
+    volume-maximo-mm: 30         # teto por aplicação (acima disso, sugere parcelar)
   monitoramento:
     # Critério provisório: sensor ATIVO sem leitura há mais que isto conta como "sem leitura recente".
     sensor-sem-leitura-minutos: ${SENSOR_SEM_LEITURA_MINUTOS:30}

@@ -5,6 +5,7 @@ import br.com.agricoladigital.smart_farming_api.dto.response.CulturaResponse;
 import br.com.agricoladigital.smart_farming_api.entity.Cultura;
 import br.com.agricoladigital.smart_farming_api.exception.ConflitoException;
 import br.com.agricoladigital.smart_farming_api.exception.RecursoNaoEncontradoException;
+import br.com.agricoladigital.smart_farming_api.exception.RegraDeNegocioException;
 import br.com.agricoladigital.smart_farming_api.repository.CulturaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.PlantioRepository;
 import org.springframework.data.domain.Sort;
@@ -32,7 +33,9 @@ public class CulturaService {
         if (culturaRepository.existsByNomeIgnoreCase(nome)) {
             throw new ConflitoException(MENSAGEM_NOME_DUPLICADO);
         }
-        Cultura cultura = new Cultura(nome, request.cicloDias());
+        validarParametrosDeIrrigacao(request);
+        Cultura cultura = new Cultura(nome, request.cicloDias(), request.umidadeMinima(), request.umidadeIdeal(),
+                request.profundidadeRaizCm());
         return paraResponse(culturaRepository.save(cultura));
     }
 
@@ -54,7 +57,9 @@ public class CulturaService {
         if (culturaRepository.existsByNomeIgnoreCaseAndIdNot(nome, id)) {
             throw new ConflitoException(MENSAGEM_NOME_DUPLICADO);
         }
-        cultura.atualizar(nome, request.cicloDias());
+        validarParametrosDeIrrigacao(request);
+        cultura.atualizar(nome, request.cicloDias(), request.umidadeMinima(), request.umidadeIdeal(),
+                request.profundidadeRaizCm());
         return paraResponse(cultura);
     }
 
@@ -68,6 +73,18 @@ public class CulturaService {
         culturaRepository.flush();
     }
 
+    private static void validarParametrosDeIrrigacao(CulturaRequest request) {
+        int informados = (request.umidadeMinima() != null ? 1 : 0) + (request.umidadeIdeal() != null ? 1 : 0)
+                + (request.profundidadeRaizCm() != null ? 1 : 0);
+        if (informados != 0 && informados != 3) {
+            throw new RegraDeNegocioException(
+                    "Informe umidadeMinima, umidadeIdeal e profundidadeRaizCm juntas, ou nenhuma delas.");
+        }
+        if (informados == 3 && request.umidadeMinima() >= request.umidadeIdeal()) {
+            throw new RegraDeNegocioException("umidadeMinima deve ser menor que umidadeIdeal.");
+        }
+    }
+
     private Cultura encontrar(Long id) {
         return culturaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cultura não encontrada: " + id));
@@ -75,7 +92,8 @@ public class CulturaService {
 
     private static CulturaResponse paraResponse(Cultura cultura) {
         return new CulturaResponse(
-                cultura.getId(), cultura.getNome(), cultura.getCicloDias()
+                cultura.getId(), cultura.getNome(), cultura.getCicloDias(), cultura.getUmidadeMinima(),
+                cultura.getUmidadeIdeal(), cultura.getProfundidadeRaizCm(), cultura.temParametrosDeIrrigacao()
         );
     }
 }

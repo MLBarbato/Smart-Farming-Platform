@@ -1,16 +1,13 @@
 package br.com.agricoladigital.smart_farming_api.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import br.com.agricoladigital.smart_farming_api.entity.StatusPlantio;
 import tools.jackson.databind.JsonNode;
 
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Dados para desenhar o mapa de uma fazenda: o ponto da fazenda, o polígono de cada talhão e o
- * que a interface mostra ao passar o mouse sobre ele. As coordenadas seguem o GeoJSON
- * ({@code [longitude, latitude]}); a fazenda traz latitude e longitude separadas.
- */
+@Schema(description = "Dados para desenhar o mapa de uma fazenda: o ponto da fazenda, o polígono de cada talhão e o que a interface mostra ao passar o mouse sobre ele. As coordenadas seguem o GeoJSON ([longitude, latitude]); a fazenda traz latitude e longitude separadas.")
 public record MapaFazendaResponse(FazendaMapa fazenda, List<TalhaoMapa> talhoes, ResumoAlertasResponse alertas) {
 
     public record FazendaMapa(
@@ -29,14 +26,16 @@ public record MapaFazendaResponse(FazendaMapa fazenda, List<TalhaoMapa> talhoes,
             Long id,
             String identificacao,
             Double areaHectares,
-            /** GeoJSON Polygon; nulo se o talhão ainda não foi desenhado. */
+            @Schema(description = "GeoJSON Polygon; nulo se o talhão ainda não foi desenhado.")
             JsonNode geometria,
-            /** Plantio em cultivo; nulo se o talhão não está com nada plantado agora. */
+            @Schema(description = "Plantio em cultivo; nulo se o talhão não está com nada plantado agora.")
             PlantioAtual plantioAtual,
             SensoresResumo sensores,
             List<LeituraResponse> leiturasAtuais,
-            /** Alertas abertos do talhão; {@code maiorCriticidade} indica a cor do polígono. */
-            ResumoAlertasResponse alertas
+            @Schema(description = "Alertas abertos do talhão; maiorCriticidade indica a cor do polígono.")
+            ResumoAlertasResponse alertas,
+            @Schema(description = "Recomendação de irrigação mais recente do talhão em cultivo; nula se não houver.")
+            RecomendacaoAtualResponse recomendacaoIrrigacao
     ) {
     }
 

@@ -26,6 +26,9 @@ import br.com.agricoladigital.smart_farming_api.entity.VariavelMonitorada;
 import br.com.agricoladigital.smart_farming_api.exception.RecursoNaoEncontradoException;
 import br.com.agricoladigital.smart_farming_api.repository.AlertaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.ContagemAlerta;
+import br.com.agricoladigital.smart_farming_api.repository.RecomendacaoIrrigacaoRepository;
+import br.com.agricoladigital.smart_farming_api.dto.response.ResumoIrrigacaoResponse;
+import br.com.agricoladigital.smart_farming_api.entity.RecomendacaoIrrigacao;
 import br.com.agricoladigital.smart_farming_api.repository.EstacaoMeteorologicaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.FazendaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.LeituraRepository;
@@ -70,6 +73,7 @@ public class ResumoService {
     private final LeituraRepository leituraRepository;
     private final EstacaoMeteorologicaRepository estacaoRepository;
     private final AlertaRepository alertaRepository;
+    private final RecomendacaoIrrigacaoRepository recomendacaoRepository;
     private final Duration janelaLeituraRecente;
     private final Clock clock;
 
@@ -82,10 +86,11 @@ public class ResumoService {
             LeituraRepository leituraRepository,
             EstacaoMeteorologicaRepository estacaoRepository,
             AlertaRepository alertaRepository,
+            RecomendacaoIrrigacaoRepository recomendacaoRepository,
             @Value("${app.monitoramento.sensor-sem-leitura-minutos:30}") long minutosSemLeitura
     ) {
         this(fazendaRepository, talhaoRepository, plantioRepository, sensorRepository, leituraRepository,
-                estacaoRepository, alertaRepository, minutosSemLeitura, Clock.systemUTC());
+                estacaoRepository, alertaRepository, recomendacaoRepository, minutosSemLeitura, Clock.systemUTC());
     }
 
     ResumoService(
@@ -96,6 +101,7 @@ public class ResumoService {
             LeituraRepository leituraRepository,
             EstacaoMeteorologicaRepository estacaoRepository,
             AlertaRepository alertaRepository,
+            RecomendacaoIrrigacaoRepository recomendacaoRepository,
             long minutosSemLeitura,
             Clock clock
     ) {
@@ -109,6 +115,7 @@ public class ResumoService {
         this.leituraRepository = leituraRepository;
         this.estacaoRepository = estacaoRepository;
         this.alertaRepository = alertaRepository;
+        this.recomendacaoRepository = recomendacaoRepository;
         this.janelaLeituraRecente = Duration.ofMinutes(minutosSemLeitura);
         this.clock = clock;
     }
@@ -138,7 +145,8 @@ public class ResumoService {
                 resumos.stream().mapToInt(r -> r.sensores().ativos()).sum(),
                 resumos.stream().mapToInt(r -> r.sensores().semLeituraRecente()).sum(),
                 resumos.stream().mapToInt(r -> r.plantios().emCultivo()).sum(),
-                ResumoAlertas.somar(resumos.stream().map(ResumoFazendaResponse::alertas).toList())
+                ResumoAlertas.somar(resumos.stream().map(ResumoFazendaResponse::alertas).toList()),
+                ResumoIrrigacao.somar(resumos.stream().map(ResumoFazendaResponse::irrigacao).toList())
         );
         return new ResumoGeralResponse(totais, cards, (int) janelaLeituraRecente.toMinutes());
     }
@@ -171,6 +179,9 @@ public class ResumoService {
                 .contarPorTalhaoECriticidade(ids, EnumSet.of(StatusAlerta.ABERTO, StatusAlerta.EM_ATENDIMENTO))
                 .stream().collect(Collectors.groupingBy(ContagemAlerta::fazendaId));
 
+        Map<Long, List<RecomendacaoIrrigacao>> recomendacoes = recomendacaoRepository.ultimasDasFazendas(ids).stream()
+                .collect(Collectors.groupingBy(r -> r.getTalhao().getFazenda().getId()));
+
         LocalDateTime agora = LocalDateTime.now(clock).withNano(0);
         return fazendas.stream()
                 .map(fazenda -> resumir(
@@ -181,6 +192,7 @@ public class ResumoService {
                         ultimas,
                         resumirEstacao(estacoes.get(fazenda.getId()), sensoresDaEstacao, ultimas, agora),
                         ResumoAlertas.de(alertas.getOrDefault(fazenda.getId(), List.of())),
+                        recomendacoes.getOrDefault(fazenda.getId(), List.of()),
                         agora
                 ))
                 .toList();
@@ -194,6 +206,7 @@ public class ResumoService {
             Map<Long, Leitura> ultimas,
             ResumoFazendaResponse.Estacao estacao,
             ResumoAlertasResponse alertas,
+            List<RecomendacaoIrrigacao> recomendacoes,
             LocalDateTime agora
     ) {
         List<Plantio> emCultivo = plantios.stream().filter(p -> p.getStatus() == StatusPlantio.EM_CULTIVO).toList();
@@ -239,6 +252,8 @@ public class ResumoService {
                 produtividade(plantios),
                 estacao,
                 alertas,
+                ResumoIrrigacao.de(recomendacoes.stream()
+                        .filter(r -> talhoesEmCultivo.contains(r.getTalhao().getId())).toList()),
                 (int) janelaLeituraRecente.toMinutes(),
                 agora.atOffset(ZoneOffset.UTC)
         );
@@ -345,7 +360,8 @@ public class ResumoService {
                 r.fazenda().areaTotal(), r.talhoes().total(), r.sensores().total(), r.sensores().ativos(),
                 r.sensores().semLeituraRecente(), r.plantios().emCultivo(),
                 r.culturasEmCultivo().stream().map(CulturaEmCultivo::cultura).toList(),
-                r.alertas()
+                r.alertas(),
+                r.irrigacao()
         );
     }
 

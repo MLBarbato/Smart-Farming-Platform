@@ -18,11 +18,17 @@ import br.com.agricoladigital.smart_farming_api.dto.response.ResumoAlertasRespon
 import br.com.agricoladigital.smart_farming_api.entity.StatusAlerta;
 import br.com.agricoladigital.smart_farming_api.repository.AlertaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.ContagemAlerta;
+import br.com.agricoladigital.smart_farming_api.repository.RecomendacaoIrrigacaoRepository;
+import br.com.agricoladigital.smart_farming_api.dto.response.RecomendacaoAtualResponse;
+import br.com.agricoladigital.smart_farming_api.entity.RecomendacaoIrrigacao;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import br.com.agricoladigital.smart_farming_api.repository.FazendaRepository;
 import br.com.agricoladigital.smart_farming_api.repository.LeituraRepository;
 import br.com.agricoladigital.smart_farming_api.repository.PlantioRepository;
 import br.com.agricoladigital.smart_farming_api.repository.SensorRepository;
 import br.com.agricoladigital.smart_farming_api.repository.TalhaoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,21 +50,41 @@ public class MapaService {
     private final SensorRepository sensorRepository;
     private final LeituraRepository leituraRepository;
     private final AlertaRepository alertaRepository;
+    private final RecomendacaoIrrigacaoRepository recomendacaoRepository;
+    private final Clock clock;
 
+    @Autowired
     public MapaService(
             FazendaRepository fazendaRepository,
             TalhaoRepository talhaoRepository,
             PlantioRepository plantioRepository,
             SensorRepository sensorRepository,
             LeituraRepository leituraRepository,
-            AlertaRepository alertaRepository
+            AlertaRepository alertaRepository,
+            RecomendacaoIrrigacaoRepository recomendacaoRepository
     ) {
+        this(fazendaRepository, talhaoRepository, plantioRepository, sensorRepository, leituraRepository,
+                alertaRepository, recomendacaoRepository, Clock.systemUTC());
+    }
+
+    MapaService(
+            FazendaRepository fazendaRepository,
+            TalhaoRepository talhaoRepository,
+            PlantioRepository plantioRepository,
+            SensorRepository sensorRepository,
+            LeituraRepository leituraRepository,
+            AlertaRepository alertaRepository,
+            RecomendacaoIrrigacaoRepository recomendacaoRepository,
+            Clock clock
+    ) {
+        this.clock = clock;
         this.fazendaRepository = fazendaRepository;
         this.talhaoRepository = talhaoRepository;
         this.plantioRepository = plantioRepository;
         this.sensorRepository = sensorRepository;
         this.leituraRepository = leituraRepository;
         this.alertaRepository = alertaRepository;
+        this.recomendacaoRepository = recomendacaoRepository;
     }
 
     public MapaFazendaResponse mapaDaFazenda(Long fazendaId) {
@@ -84,6 +110,12 @@ public class MapaService {
         Map<Long, List<ContagemAlerta>> alertasPorTalhao = contagens.stream()
                 .collect(Collectors.groupingBy(ContagemAlerta::talhaoId));
 
+        LocalDateTime agora = LocalDateTime.now(clock).withNano(0);
+        Map<Long, RecomendacaoAtualResponse> recomendacaoPorTalhao = new HashMap<>();
+        recomendacaoRepository.ultimasDasFazendas(List.of(fazendaId)).stream()
+                .filter(r -> plantioPorTalhao.containsKey(r.getTalhao().getId()))
+                .forEach(r -> recomendacaoPorTalhao.put(r.getTalhao().getId(), ResumoIrrigacao.atual(r, agora)));
+
         List<TalhaoMapa> resposta = talhoes.stream()
                 .sorted(Comparator.comparing(Talhao::getIdentificacao))
                 .map(talhao -> paraTalhaoMapa(
@@ -91,7 +123,8 @@ public class MapaService {
                         plantioPorTalhao.get(talhao.getId()),
                         sensoresPorTalhao.getOrDefault(talhao.getId(), List.of()),
                         ultimaPorSensor,
-                        ResumoAlertas.de(alertasPorTalhao.getOrDefault(talhao.getId(), List.of()))
+                        ResumoAlertas.de(alertasPorTalhao.getOrDefault(talhao.getId(), List.of())),
+                        recomendacaoPorTalhao.get(talhao.getId())
                 ))
                 .toList();
         return new MapaFazendaResponse(paraFazendaMapa(fazenda), resposta, ResumoAlertas.de(contagens));
@@ -106,7 +139,8 @@ public class MapaService {
 
     private static TalhaoMapa paraTalhaoMapa(
             Talhao talhao, Plantio plantio, List<Sensor> sensores, Map<Long, Leitura> ultimaPorSensor,
-            ResumoAlertasResponse alertas
+            ResumoAlertasResponse alertas,
+            RecomendacaoAtualResponse recomendacao
     ) {
         int ativos = (int) sensores.stream()
                 .filter(sensor -> sensor.getDispositivo().getStatus() == StatusDispositivo.ATIVO)
@@ -124,7 +158,8 @@ public class MapaService {
                 plantio == null ? null : paraPlantioAtual(plantio),
                 new SensoresResumo(sensores.size(), ativos),
                 leituras,
-                alertas
+                alertas,
+                recomendacao
         );
     }
 

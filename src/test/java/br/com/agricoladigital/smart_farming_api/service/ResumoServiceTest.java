@@ -38,6 +38,7 @@ class ResumoServiceTest {
     @Mock private LeituraRepository leituraRepository;
     @Mock private EstacaoMeteorologicaRepository estacaoRepository;
     @Mock private AlertaRepository alertaRepository;
+    @Mock private RecomendacaoIrrigacaoRepository recomendacaoRepository;
 
     private ResumoService resumoService;
     private Fazenda fazenda;
@@ -48,7 +49,7 @@ class ResumoServiceTest {
     @BeforeEach
     void preparar() {
         resumoService = new ResumoService(fazendaRepository, talhaoRepository, plantioRepository, sensorRepository,
-                leituraRepository, estacaoRepository, alertaRepository, 30, Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
+                leituraRepository, estacaoRepository, alertaRepository, recomendacaoRepository, 30, Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         lenient().when(estacaoRepository.listarDasFazendas(any())).thenReturn(List.of());
         Usuario dono = new Usuario("Ana", "ana@example.com", "hash", PerfilUsuario.AGRICULTOR);
         fazenda = new Fazenda("Santa Maria", "Rio Verde", 1240.0, null, null, "Rio Verde", "GO", dono);
@@ -256,7 +257,7 @@ class ResumoServiceTest {
     @Test
     void configuracaoInvalidaEhRejeitada() {
         assertThrows(IllegalArgumentException.class, () -> new ResumoService(fazendaRepository, talhaoRepository,
-                plantioRepository, sensorRepository, leituraRepository, estacaoRepository, alertaRepository, 0, Clock.systemUTC()));
+                plantioRepository, sensorRepository, leituraRepository, estacaoRepository, alertaRepository, recomendacaoRepository, 0, Clock.systemUTC()));
     }
 
     @Test
@@ -344,5 +345,48 @@ class ResumoServiceTest {
         assertEquals(1, geral.totais().alertas().alta());
         assertEquals(2, geral.totais().alertas().media());
         assertEquals(CriticidadeAlerta.ALTA, geral.totais().alertas().maiorCriticidade());
+    }
+
+    private RecomendacaoIrrigacao recomendacao(Talhao talhao, SituacaoIrrigacao situacao) {
+        InsumosIrrigacao insumos = new InsumosIrrigacao("Soja", 30.0, 38.0, 30, 28.0, OrigemUmidade.SENSOR_TALHAO,
+                null, null, null, null, false, List.of());
+        RecomendacaoIrrigacao r = new RecomendacaoIrrigacao(talhao, null, AGORA, AGORA.plusHours(6), situacao,
+                situacao == SituacaoIrrigacao.IRRIGAR ? 20.0 : null, "x", insumos);
+        ReflectionTestUtils.setField(r, "id", 1L);
+        return r;
+    }
+
+    @Test
+    void resumoContaAsRecomendacoesDeIrrigacaoSoDosTalhoesEmCultivo() {
+        when(fazendaRepository.findById(1L)).thenReturn(Optional.of(fazenda));
+        dadosDaFazenda(List.of(plantio(talhaoA, StatusPlantio.EM_CULTIVO, "2026/2027", null)), List.of(), List.of());
+        when(recomendacaoRepository.ultimasDasFazendas(any())).thenReturn(List.of(
+                recomendacao(talhaoA, SituacaoIrrigacao.IRRIGAR),
+                recomendacao(talhaoB, SituacaoIrrigacao.IRRIGAR)));   // B não está em cultivo
+
+        var irrigacao = resumoService.resumoDaFazenda(1L).irrigacao();
+
+        assertEquals(1, irrigacao.irrigar());
+        assertEquals(0, irrigacao.naoIrrigar());
+        assertEquals(0, irrigacao.semDadosSuficientes());
+    }
+
+    @Test
+    void resumoGeralSomaAIrrigacaoDasFazendas() {
+        when(fazendaRepository.findAllByUsuario_Id(7L)).thenReturn(List.of(fazenda));
+        when(talhaoRepository.findAllByFazenda_IdIn(any())).thenReturn(List.of(talhaoA, talhaoB));
+        when(plantioRepository.buscarPorFazendas(any())).thenReturn(List.of(
+                plantio(talhaoA, StatusPlantio.EM_CULTIVO, "2026/2027", null),
+                plantio(talhaoB, StatusPlantio.EM_CULTIVO, "2026/2027", null)));
+        when(sensorRepository.listarPorFazendas(any())).thenReturn(List.of());
+        when(recomendacaoRepository.ultimasDasFazendas(any())).thenReturn(List.of(
+                recomendacao(talhaoA, SituacaoIrrigacao.IRRIGAR),
+                recomendacao(talhaoB, SituacaoIrrigacao.AGUARDAR_CHUVA)));
+
+        ResumoGeralResponse geral = resumoService.resumoGeral(7L);
+
+        assertEquals(1, geral.totais().irrigacao().irrigar());
+        assertEquals(1, geral.totais().irrigacao().aguardarChuva());
+        assertEquals(1, geral.fazendas().get(0).irrigacao().irrigar());
     }
 }

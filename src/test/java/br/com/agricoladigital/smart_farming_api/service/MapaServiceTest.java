@@ -35,7 +35,8 @@ class MapaServiceTest {
     @Mock private SensorRepository sensorRepository;
     @Mock private LeituraRepository leituraRepository;
     @Mock private AlertaRepository alertaRepository;
-    @InjectMocks private MapaService mapaService;
+    @Mock private RecomendacaoIrrigacaoRepository recomendacaoRepository;
+    private MapaService mapaService;
 
     private Fazenda fazenda;
     private Talhao talhaoA;
@@ -43,6 +44,9 @@ class MapaServiceTest {
 
     @BeforeEach
     void preparar() {
+        mapaService = new MapaService(fazendaRepository, talhaoRepository, plantioRepository, sensorRepository,
+                leituraRepository, alertaRepository, recomendacaoRepository,
+                java.time.Clock.fixed(java.time.Instant.parse("2026-11-16T12:00:00Z"), java.time.ZoneOffset.UTC));
         Usuario dono = new Usuario("Ana", "ana@example.com", "hash", PerfilUsuario.AGRICULTOR);
         fazenda = new Fazenda("Santa Maria", "Rio Verde", 1240.0, -17.79, -50.92, "Rio Verde", "GO", dono);
         ReflectionTestUtils.setField(fazenda, "id", 1L);
@@ -150,5 +154,32 @@ class MapaServiceTest {
         assertEquals(0, b.abertos());
         assertNull(b.maiorCriticidade());
         assertEquals(2, mapa.alertas().abertos());
+    }
+
+    @Test
+    void talhaoEmCultivoTrazARecomendacaoDeIrrigacaoAtual() {
+        when(fazendaRepository.findById(1L)).thenReturn(Optional.of(fazenda));
+        when(talhaoRepository.findAllByFazenda_Id(1L)).thenReturn(List.of(talhaoA, talhaoB));
+        Plantio plantio = new Plantio(talhaoA, new Cultura("Soja", 120), "Direto", "2026/2027",
+                LocalDate.of(2026, 10, 5), null);
+        ReflectionTestUtils.setField(plantio, "status", StatusPlantio.EM_CULTIVO);
+        when(plantioRepository.buscarPorFazendaEStatus(1L, StatusPlantio.EM_CULTIVO)).thenReturn(List.of(plantio));
+        LocalDateTime agora = LocalDateTime.of(2026, 11, 16, 11, 0, 0);
+        InsumosIrrigacao insumos = new InsumosIrrigacao("Soja", 30.0, 38.0, 30, 20.0, OrigemUmidade.SENSOR_TALHAO,
+                null, null, null, null, false, List.of());
+        RecomendacaoIrrigacao rA = new RecomendacaoIrrigacao(talhaoA, null, agora, agora.plusHours(6),
+                SituacaoIrrigacao.IRRIGAR, 20.0, "x", insumos);
+        ReflectionTestUtils.setField(rA, "id", 5L);
+        RecomendacaoIrrigacao rB = new RecomendacaoIrrigacao(talhaoB, null, agora, agora.plusHours(6),
+                SituacaoIrrigacao.IRRIGAR, 20.0, "x", insumos);   // B não está em cultivo: não aparece
+        when(recomendacaoRepository.ultimasDasFazendas(any())).thenReturn(List.of(rA, rB));
+
+        MapaFazendaResponse mapa = mapaService.mapaDaFazenda(1L);
+
+        var a = mapa.talhoes().stream().filter(t -> t.id() == 10L).findFirst().orElseThrow().recomendacaoIrrigacao();
+        assertEquals(SituacaoIrrigacao.IRRIGAR, a.situacao());
+        assertEquals(20.0, a.volumeRecomendadoMm());
+        assertFalse(a.vencida());
+        assertNull(mapa.talhoes().stream().filter(t -> t.id() == 11L).findFirst().orElseThrow().recomendacaoIrrigacao());
     }
 }

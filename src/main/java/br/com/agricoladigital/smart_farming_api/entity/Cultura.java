@@ -21,13 +21,42 @@ public class Cultura {
     @Column(name = "ciclo_dias")
     private Integer cicloDias;
 
+    /** Umidade do solo (%) abaixo da qual a cultura precisa de irrigação. */
+    @Column(name = "umidade_minima")
+    private Double umidadeMinima;
+
+    /** Umidade do solo (%) que a irrigação deve alcançar. */
+    @Column(name = "umidade_ideal")
+    private Double umidadeIdeal;
+
+    /** Profundidade efetiva das raízes, em cm (converte a diferença de umidade em lâmina de água). */
+    @Column(name = "profundidade_raiz_cm")
+    private Integer profundidadeRaizCm;
+
     public Cultura(String nome, Integer cicloDias) {
+        this(nome, cicloDias, null, null, null);
+    }
+
+    public Cultura(String nome, Integer cicloDias, Double umidadeMinima, Double umidadeIdeal, Integer profundidadeRaizCm) {
+        atualizar(nome, cicloDias, umidadeMinima, umidadeIdeal, profundidadeRaizCm);
+    }
+
+    public void atualizar(
+            String nome, Integer cicloDias, Double umidadeMinima, Double umidadeIdeal, Integer profundidadeRaizCm
+    ) {
         this.nome = nome;
         this.cicloDias = cicloDias;
+        this.umidadeMinima = umidadeMinima;
+        this.umidadeIdeal = umidadeIdeal;
+        this.profundidadeRaizCm = profundidadeRaizCm;
     }
 
     public void atualizar(String nome, Integer cicloDias) {
-        this.nome = nome;
-        this.cicloDias = cicloDias;
+        atualizar(nome, cicloDias, umidadeMinima, umidadeIdeal, profundidadeRaizCm);
+    }
+
+    /** Se a cultura tem os três parâmetros necessários para recomendar irrigação. */
+    public boolean temParametrosDeIrrigacao() {
+        return umidadeMinima != null && umidadeIdeal != null && profundidadeRaizCm != null;
     }
 }
