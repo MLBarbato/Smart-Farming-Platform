@@ -10,5 +10,10 @@ public interface FazendaRepository extends JpaRepository<Fazenda, Long> {
 
     boolean existsByUsuario_Id(Long usuarioId);
 
+    List<Fazenda> findAllByLatitudeIsNotNullAndLongitudeIsNotNull();
+
     boolean existsByIdAndUsuario_Id(Long id, Long usuarioId);
+
+    @org.springframework.data.jpa.repository.Query("select f.id from Fazenda f")
+    List<Long> listarIds();
 }

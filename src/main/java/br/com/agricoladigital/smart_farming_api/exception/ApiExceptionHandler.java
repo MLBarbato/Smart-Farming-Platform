@@ -2,6 +2,7 @@ package br.com.agricoladigital.smart_farming_api.exception;
 
 import br.com.agricoladigital.smart_farming_api.dto.response.ErroResponse;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +34,12 @@ public class ApiExceptionHandler {
         return resposta(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErroResponse> tratarConcorrencia(ObjectOptimisticLockingFailureException exception) {
+        return resposta(HttpStatus.CONFLICT,
+                "O registro foi alterado por outra operação ao mesmo tempo; consulte-o e tente de novo.", Map.of());
+    }
+
     @ExceptionHandler(SenhaAtualInvalidaException.class)
     public ResponseEntity<ErroResponse> tratarSenhaAtualInvalida(SenhaAtualInvalidaException exception) {
         return resposta(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
@@ -54,6 +61,12 @@ public class ApiExceptionHandler {
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getSegundosRestantes()))
                 .body(corpo(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), Map.of(),
                         LoginBloqueadoException.CODIGO));
+    }
+
+    @ExceptionHandler(PrevisaoIndisponivelException.class)
+    public ResponseEntity<ErroResponse> tratarPrevisaoIndisponivel(PrevisaoIndisponivelException exception) {
+        return resposta(HttpStatus.SERVICE_UNAVAILABLE,
+                "O serviço de previsão do tempo está indisponível no momento. Tente novamente mais tarde.", Map.of());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

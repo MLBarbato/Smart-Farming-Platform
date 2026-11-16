@@ -32,6 +32,15 @@ app:
     max-tentativas-por-ip: 20    # falhas por IP (qualquer e-mail) antes de bloquear
     janela-minutos: 15           # período em que as falhas são contadas
     bloqueio-minutos: 15         # duração do bloqueio
+  previsao:
+    # Open-Meteo: uso gratuito apenas não comercial; licença CC BY 4.0 (exige atribuição).
+    url: ${PREVISAO_URL:https://api.open-meteo.com/v1/forecast}
+    timeout-segundos: 10
+    dias: 7                       # dias de previsão (1 a 16)
+    validade-horas: 12            # depois disso a previsão é marcada como DESATUALIZADA
+    atualizacao-automatica: ${PREVISAO_ATUALIZACAO_AUTOMATICA:true}
+    atualizacao-minutos: 180      # intervalo do job que atualiza todas as fazendas com coordenadas
+    intervalo-minimo-manual-minutos: 5   # evita chamadas seguidas pelo endpoint de atualização
   admin:
     nome: ${ADMIN_NOME:Administrador}
     email: ${ADMIN_EMAIL:}
