@@ -161,6 +161,7 @@ class OpenApiIntegracaoTest extends IntegracaoPostgresBase {
                 "/api/v1/regras-alerta", "/api/v1/fazendas/{fazendaId}/alertas",
                 "/api/v1/fazendas/{fazendaId}/alertas/{alertaId}/status",
                 "/api/v1/fazendas/{fazendaId}/recomendacoes-irrigacao",
+                "/api/v1/fazendas/{fazendaId}/relatorios/{tipo}",
                 "/api/v1/fazendas/{fazendaId}/recomendacoes-irrigacao/calcular")) {
             assertTrue(caminhos.containsKey(rota), "falta a rota " + rota);
         }

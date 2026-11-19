@@ -63,4 +63,18 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long>, JpaSpecif
             @Param("fazendaIds") Collection<Long> fazendaIds,
             @Param("status") Collection<StatusAlerta> status
     );
+
+    /** Alertas da fazenda abertos em [de, ate), com talhão e atendente, em ordem cronológica (relatório). */
+    @Query("""
+            select a from Alerta a
+            join fetch a.talhao t
+            left join fetch a.atendente
+            where t.fazenda.id = :fazendaId and a.dataHora >= :de and a.dataHora < :ate
+            order by a.dataHora, a.id
+            """)
+    List<Alerta> buscarNoPeriodo(
+            @Param("fazendaId") Long fazendaId,
+            @Param("de") LocalDateTime de,
+            @Param("ate") LocalDateTime ate
+    );
 }

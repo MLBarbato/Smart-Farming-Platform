@@ -36,4 +36,17 @@ public interface RecomendacaoIrrigacaoRepository
     default List<RecomendacaoIrrigacao> ultimasDaFazenda(Long fazendaId) {
         return ultimasDasFazendas(List.of(fazendaId));
     }
+
+    /** Recomendações da fazenda calculadas em [de, ate), em ordem cronológica (relatório). */
+    @Query("""
+            select r from RecomendacaoIrrigacao r
+            join fetch r.talhao t
+            where t.fazenda.id = :fazendaId and r.dataHora >= :de and r.dataHora < :ate
+            order by r.dataHora, r.id
+            """)
+    List<RecomendacaoIrrigacao> buscarNoPeriodo(
+            @Param("fazendaId") Long fazendaId,
+            @Param("de") java.time.LocalDateTime de,
+            @Param("ate") java.time.LocalDateTime ate
+    );
 }

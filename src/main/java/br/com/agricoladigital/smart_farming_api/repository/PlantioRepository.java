@@ -64,4 +64,23 @@ public interface PlantioRepository extends JpaRepository<Plantio, Long>, JpaSpec
             where t.fazenda.id in :fazendaIds
             """)
     List<Plantio> buscarPorFazendas(@Param("fazendaIds") Collection<Long> fazendaIds);
+
+    /**
+     * Plantios da fazenda que ocuparam o período [de, ate] (datas locais): plantados até o fim do período e
+     * ainda sem colheita real ou colhidos a partir do início. Ordenados por talhão e data de plantio (relatório).
+     */
+    @Query("""
+            select p from Plantio p
+            join fetch p.talhao t
+            join fetch p.cultura
+            where t.fazenda.id = :fazendaId
+              and p.dataPlantio <= :ate
+              and (p.dataColheitaReal is null or p.dataColheitaReal >= :de)
+            order by t.identificacao, p.dataPlantio, p.id
+            """)
+    List<Plantio> buscarNoPeriodo(
+            @Param("fazendaId") Long fazendaId,
+            @Param("de") LocalDate de,
+            @Param("ate") LocalDate ate
+    );
 }

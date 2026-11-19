@@ -104,4 +104,30 @@ public interface LeituraRepository extends JpaRepository<Leitura, Long> {
             @Param("de") LocalDateTime de,
             @Param("ate") LocalDateTime ate
     );
+
+    /** Leituras dos dispositivos em [de, ate), em ordem cronológica (relatório de clima). */
+    @Query("""
+            select l from Leitura l
+            where l.dispositivo.id in :dispositivoIds and l.dataHora >= :de and l.dataHora < :ate
+            order by l.dataHora, l.id
+            """)
+    List<Leitura> buscarNoPeriodo(
+            @Param("dispositivoIds") Collection<Long> dispositivoIds,
+            @Param("de") LocalDateTime de,
+            @Param("ate") LocalDateTime ate
+    );
+
+    /** Resumo das leituras de cada dispositivo em [de, ate); dispositivos sem leitura não aparecem (relatório). */
+    @Query("""
+            select new br.com.agricoladigital.smart_farming_api.repository.ResumoLeiturasSensor(
+                l.dispositivo.id, count(l), min(l.dataHora), max(l.dataHora), min(l.valor), avg(l.valor), max(l.valor))
+            from Leitura l
+            where l.dispositivo.id in :dispositivoIds and l.dataHora >= :de and l.dataHora < :ate
+            group by l.dispositivo.id
+            """)
+    List<ResumoLeiturasSensor> resumirNoPeriodo(
+            @Param("dispositivoIds") Collection<Long> dispositivoIds,
+            @Param("de") LocalDateTime de,
+            @Param("ate") LocalDateTime ate
+    );
 }
