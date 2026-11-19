@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * Reúne os dados já gravados de uma fazenda (leituras, estação, previsão, cultura em cultivo), pede o
  * cálculo e grava a recomendação de cada talhão com plantio EM_CULTIVO. Só lê o banco: nenhuma chamada
  * externa. Uma nova recomendação só é gravada quando o resultado muda (ou quando os dados que faltam
- * mudam) ou quando a anterior venceu; assim o histórico não se enche de repetições.
+ * mudam, inclusive a origem da umidade) ou quando a anterior venceu; assim o histórico não se enche de repetições.
  *
  * <p>A previsão é diária, em datas locais da fazenda; "hoje e amanhã" é aproximado pela data UTC e a
  * chuva é a soma dos dois dias.
@@ -172,6 +172,11 @@ public class RecomendadorIrrigacao {
 
     private static boolean precisaGravar(RecomendacaoIrrigacao anterior, Calculo calculo, LocalDateTime agora) {
         if (anterior == null || anterior.getSituacao() != calculo.situacao() || !agora.isBefore(anterior.getValidoAte())) {
+            return true;
+        }
+        // Mudou a fonte da umidade (por exemplo, o talhão ganhou um sensor): a recomendação vigente
+        // foi calculada com outra base e deixa de refletir a situação do talhão.
+        if (anterior.getOrigemUmidade() != calculo.insumos().origemUmidade()) {
             return true;
         }
         if (calculo.situacao() == SituacaoIrrigacao.SEM_DADOS_SUFICIENTES) {

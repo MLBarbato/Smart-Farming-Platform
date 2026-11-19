@@ -87,8 +87,15 @@ class RecomendadorIrrigacaoTest {
     }
 
     private RecomendacaoIrrigacao anterior(SituacaoIrrigacao situacao, LocalDateTime validoAte, List<String> faltantes) {
-        InsumosIrrigacao insumos = new InsumosIrrigacao("Soja", 30.0, 38.0, 30, null, null, null, null, null, null,
-                false, faltantes);
+        return anterior(situacao, validoAte, faltantes,
+                situacao == SituacaoIrrigacao.SEM_DADOS_SUFICIENTES ? null : OrigemUmidade.SENSOR_TALHAO);
+    }
+
+    private RecomendacaoIrrigacao anterior(
+            SituacaoIrrigacao situacao, LocalDateTime validoAte, List<String> faltantes, OrigemUmidade origem
+    ) {
+        InsumosIrrigacao insumos = new InsumosIrrigacao("Soja", 30.0, 38.0, 30, origem == null ? null : 36.0, origem,
+                null, null, null, null, false, faltantes);
         RecomendacaoIrrigacao r = new RecomendacaoIrrigacao(talhao, null, AGORA.minusHours(2), validoAte, situacao,
                 situacao == SituacaoIrrigacao.IRRIGAR ? 10.0 : null, "x", insumos);
         ReflectionTestUtils.setField(r, "id", 1L);
@@ -211,6 +218,15 @@ class RecomendadorIrrigacaoTest {
         assertEquals(1, resumo.calculadas());
         assertEquals(0, resumo.gravadas());
         assertTrue(salvas.isEmpty());
+    }
+
+    @Test
+    void gravaDeNovoQuandoAOrigemDaUmidadeMudaMesmoComASituacaoIgual() {
+        soloDoTalhao(36.0);   // agora o talhão tem sensor; a recomendação vigente usava a estação
+        anterior(SituacaoIrrigacao.NAO_IRRIGAR, AGORA.plusHours(2), List.of(), OrigemUmidade.ESTACAO);
+
+        assertEquals(1, recomendador.calcularFazenda(1L).gravadas());
+        assertEquals(OrigemUmidade.SENSOR_TALHAO, salvas.get(0).getOrigemUmidade());
     }
 
     @Test
