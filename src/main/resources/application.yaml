@@ -51,7 +51,7 @@ app:
     # Estação virtual: leituras horárias (EXTERNA) do Open-Meteo para as coordenadas da fazenda.
     atualizacao-automatica: ${ESTACAO_ATUALIZACAO_AUTOMATICA:true}
     atualizacao-minutos: 60
-    historico-inicial-horas: 72          # histórico carregado quando a estação é criada
+    historico-inicial-horas: ${ESTACAO_HISTORICO_INICIAL_HORAS:720}   # histórico carregado ao criar a estação (30 dias; o provedor aceita até 2208 h)
     recuperacao-maxima-horas: 168        # lacunas maiores que isto não são recuperadas
     intervalo-minimo-manual-minutos: 5   # evita chamadas seguidas pelo endpoint de sincronização
   alertas:
